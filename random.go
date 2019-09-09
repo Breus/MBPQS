@@ -2,15 +2,14 @@ package mbpqs
 
 import (
 	"crypto/rand"
-	"log"
 )
 
 // Create a n-byte slice of random bytes.
-func randomBytes(n uint32) []byte {
+func randomBytes(n uint32) ([]byte, error) {
 	r := make([]byte, n)
 	_, err := rand.Read(r)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	return r
+	return r, nil
 }

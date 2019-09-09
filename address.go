@@ -59,14 +59,14 @@ func (addr *address) setTreeIndex(index uint32) {
 }
 
 func (addr *address) toBytes() []byte {
-	return a[:]
+	return addr[:]
 }
 
-func AddressFromBytes(data []byte) (a address, err error) {
+func AddressFromBytes(data []byte) (addr address, err error) {
 	if len(data) != 32 {
 		err = fmt.Errorf("Given byte string must be 32 bytes, is %d instead.", len(data))
-		return _, err
+		return
 	}
-	copy(a[:], data)
+	copy(addr[:], data)
 	return
 }
