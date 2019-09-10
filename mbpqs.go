@@ -1,7 +1,5 @@
 package mbpqs
 
-import "fmt"
-
 // PrivateKey is a MBPQS private key */
 type PrivateKey struct {
 	// 4-byte rootIndex holds the index of the next available ChannelKey in the root tree. */
@@ -47,11 +45,7 @@ func setParam(n, w, H, h, d uint32) *Params {
 }
 
 func GenerateKeyPair(p Params) (*PrivateKey, *PublicKey, error) {
-	err := validateParameters(p)
-	if err != nil {
-		return nil, nil, err
-	}
-	// If the parameters are ok, make a new context including them.
+	// Create new context including given parameters.
 	ctx, err := newContext(p)
 	if err != nil {
 		return nil, nil, err
@@ -72,22 +66,4 @@ func GenerateKeyPair(p Params) (*PrivateKey, *PublicKey, error) {
 	}
 
 	return ctx.DeriveKeyPair(otsS, pubS, msgS)
-}
-
-// Validates whether the given parameterset is supported by MBPQS.
-func validateParameters(p Params) error {
-	if p.n != 32 {
-		return fmt.Errorf("Only n=32 is supported for now (it was %d)", p.n)
-	}
-	switch p.w {
-	case 4:
-		ctx.opts.Mode = 0
-	case 16:
-		ctx.opts.Mode = 1
-	case 256:
-		ctx.opts.Mode = 2
-	default:
-		return fmt.Errorf("Please chose w from the {4,16,256} (it was %d)", p.w)
-	}
-	return nil
 }

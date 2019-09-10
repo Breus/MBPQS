@@ -1,5 +1,7 @@
 package mbpqs
 
+import "fmt"
+
 // rootTree is a MBPQS merkle root tree represented as an array.
 type rootTree struct {
 	H   uint32
@@ -9,7 +11,7 @@ type rootTree struct {
 
 // Allocates memory for a merkle tree of n-byte string of height H.
 func newRootTree(H, n uint32) rootTree {
-	buf := make([]byte, (1<<height)*n)
+	buf := make([]byte, (1<<H)*n)
 	return rootTree{
 		H:   H,
 		n:   n,
@@ -24,23 +26,23 @@ func (ctx *Context) genRootTree(otsSeed, pubSeed []byte) rootTree {
 	return rt
 }
 
-func (ctx *Context) genRootTreeInto(otsSeed, pubSeed, rt) {
-	log.LogF("Generating Root Tree")
-
+// Generate a root tree into the allocated memory rt.
+func (ctx *Context) genRootTreeInto(otsSeed, pubSeed []byte, rt rootTree) {
+	fmt.Println("Generating Root Tree..")
 	var otsAddr, lTreeAddr, treeAddr address
 	// Computing the leafs.
 	var idx uint32
 	if ctx.threads == 1 {
-		for idx = 0; idx < (1 << ctx.H); idx++ {
+		for idx = 0; idx < (1 << ctx.params.H); idx++ {
 			lTreeAddr.setLTree(idx)
 			otsAddr.setOTS(idx)
-			copy(mt.Node(0, idx), ctx.genLeaf(otsSeed, lTreeAddr, otsAddr))
+			copy(rt.Node(0, idx), ctx.genLeaf(otsSeed, lTreeAddr, otsAddr))
 		}
 	}
 }
 
 // Returns a slice of the node at given height and index idx.
 func (rt *rootTree) Node(height, idx uint32) []byte {
-	ptr := rt.n * ((1 << rt.height) - (1 << (rt.height - height)) + idx)
+	ptr := rt.n * ((1 << rt.H) - (1 << (rt.H - height)) + idx)
 	return rt.buf[ptr : ptr+rt.n]
 }
