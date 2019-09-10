@@ -1,8 +1,6 @@
 package mbpqs
 
 import (
-	"fmt"
-
 	"github.com/Breus/mbpqs/wotsp"
 )
 
@@ -13,23 +11,13 @@ type Context struct {
 	 * Includes the OTS address, the concurrency settings, and the used hash function.
 	 */
 	opts wotsp.Opts
+	// The amount of threads to use in the MBPQS scheme.
+	threads byte
 }
 
+// Allocates memory for a Context and sets the given parameters in it.
 func newContext(p Params) (ctx *Context, err error) {
 	ctx = new(Context)
-	if p.n != 32 {
-		return nil, fmt.Errorf("Only n=32 is supported for now (it was %d)", p.n)
-	}
-	switch p.w {
-	case 4:
-		ctx.opts.Mode = 0
-	case 16:
-		ctx.opts.Mode = 1
-	case 256:
-		ctx.opts.Mode = 2
-	default:
-		return nil, fmt.Errorf("Please chose w from the {4,16,256} (it was %d)", p.w)
-	}
 	ctx.params = p
 	return ctx, nil
 }
@@ -57,9 +45,10 @@ func (ctx *Context) newPrivateKey(otsSeed, pubSeed, msgSeed []byte) (*PrivateKey
 		msgSeed: msgSeed,
 		ctx:     ctx,
 	}
-	return sk, nil
+	return &sk, nil
 }
 
+//TODO
 func (sk *PrivateKey) derivePublicKey() (*PublicKey, error) {
-	return
+	return nil, nil
 }
