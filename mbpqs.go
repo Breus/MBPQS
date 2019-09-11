@@ -5,12 +5,13 @@ import (
 	"sync"
 )
 
-// sequence number of signatures.
-type signatureSeqNo uint64
+// SignatureSeqNo is the sequence number of signatures (leaf index).
+type SignatureSeqNo uint64
 
+// RootSignature holds a signature on a channel by the rootTree.
 type RootSignature struct {
 	ctx      *Context       // Defines the MBPQS instance which was used to create the Signature.
-	seqNo    signatureSeqNo // sequence number of this signature so you know which index key to verify.
+	seqNo    SignatureSeqNo // sequence number of this signature so you know which index key to verify.
 	drv      []byte         // digest randomized value (r).
 	wotsSig  []byte         // the WOTS signature over the message.
 	authPath []byte         // the authentication path for this signature to the rootTree root node.
@@ -18,7 +19,7 @@ type RootSignature struct {
 
 // PrivateKey is a MBPQS private key */
 type PrivateKey struct {
-	seqNo signatureSeqNo // The seqNo of the first unused signing key.
+	seqNo SignatureSeqNo // The seqNo of the first unused signing key.
 	/* n-byte skSeed is used to pseudorandomly generate wots channelkeys seeds.
 	 * S in RFC8931, SK_1 and S in XMSS-T paper.
 	 */
@@ -85,19 +86,24 @@ func GenerateKeyPair(p Params) (*PrivateKey, *PublicKey, error) {
 	return ctx.deriveKeyPair(pubSeed, skSeed, skPrf)
 }
 
-// Sign the given message with the PrivateKey
+// Sign the n-byte channel root hash with the PrivateKey
 func (sk *PrivateKey) SignChannelRoot(msg []byte) (*RootSignature, error) {
 	// Create a new scratchpad to do the signing computations on to avoid memory allocations.
 	pad := sk.ctx.newScratchPad()
-	seqNo, err := sk.getSeqNo()
+	seqNo, err := sk.GetSeqNo()
 	if err != nil {
 		return nil, err
 	}
 
+	// Set otsAddr to calculate wotsSign over the message.
 	var otsAddr address
 	// TODO: define right address
 	otsAddr.setLayer(1) // 1 for root tree
 	otsAddr.setTree(uint64(seqNo))
+
+	// Compute the root tree to build the authentication path
+	rt := sk.ctx.genRootTree(pad, sk.ph)
+	rt.AuthPath()
 
 	sig := RootSignature{
 		ctx:     sk.ctx,
@@ -110,7 +116,7 @@ func (sk *PrivateKey) SignChannelRoot(msg []byte) (*RootSignature, error) {
 }
 
 // Retrieves the current index of the first unusued channel signing key in the RootTree.
-func (sk *PrivateKey) GetSeqNo() (signatureSeqNo, error) {
+func (sk *PrivateKey) GetSeqNo() (SignatureSeqNo, error) {
 	sk.mux.Lock()
 	// Unlock the lock when the funtion is finished.
 	defer sk.mux.Unlock()
