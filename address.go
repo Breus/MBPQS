@@ -2,71 +2,79 @@ package mbpqs
 
 import (
 	"encoding/binary"
-	"fmt"
 )
 
 const (
-	OTS_ADDR_TYPE   = 0
-	LTREE_ADDR_TYPE = 1
-	TREE_ADDR_TYPE  = 2
+	OtsAddrType   = 0
+	LTreeAddrType = 1
+	TreeAddrType  = 2
 )
 
-// Address type for all address types.
-type address [32]byte
+// Address type for all address types 32 byte.
+type address [8]uint32
 
 /* Address field setters for all Address types.
  * First for OTS address, then LTREE address, then TREE address.
  */
+
 func (addr *address) setLayer(layer uint32) {
-	binary.BigEndian.PutUint32(addr[0:], layer)
+	addr[0] = layer
 }
 
 func (addr *address) setTree(tree uint64) {
-	binary.BigEndian.PutUint64(addr[4:], tree)
+	addr[1] = uint32(tree >> 32)
+	addr[2] = uint32(tree)
 }
 
-func (addr *address) setType(aType uint32) {
-	binary.BigEndian.PutUint32(addr[12:], aType)
+func (addr *address) setType(typ uint32) {
+	addr[3] = typ
+}
+
+func (addr *address) setKeyAndMask(keyAndMask uint32) {
+	addr[7] = keyAndMask
+}
+
+func (addr *address) setSubTreeFrom(other address) {
+	addr[0] = other[0]
+	addr[1] = other[1]
+	addr[2] = other[2]
 }
 
 func (addr *address) setOTS(ots uint32) {
-	binary.BigEndian.PutUint32(addr[16:], ots)
+	addr[4] = ots
 }
 
 func (addr *address) setChain(chain uint32) {
-	binary.BigEndian.PutUint32(addr[20:], chain)
+	addr[5] = chain
 }
 
 func (addr *address) setHash(hash uint32) {
-	binary.BigEndian.PutUint32(addr[24:], hash)
+	addr[6] = hash
 }
 
-func (addr *address) setKeyAndMask(keyMask uint32) {
-	binary.BigEndian.PutUint32(addr[28:], keyMask)
-}
-
-// Extra fields setters for LTREE addresses.
 func (addr *address) setLTree(ltree uint32) {
-	binary.BigEndian.PutUint32(addr[16:], ltree)
+	addr[4] = ltree
 }
 
-func (addr *address) setTreeHeight(height uint32) {
-	binary.BigEndian.PutUint32(addr[20:], height)
+func (addr *address) setTreeHeight(treeHeight uint32) {
+	addr[5] = treeHeight
 }
 
-func (addr *address) setTreeIndex(index uint32) {
-	binary.BigEndian.PutUint32(addr[24:], index)
+func (addr *address) setTreeIndex(treeIndex uint32) {
+	addr[6] = treeIndex
 }
 
-func (addr *address) toBytes() []byte {
-	return addr[:]
-}
+// Write an address into a given n-byte buffer.
+func (addr *address) writeInto(buf []byte) {
 
-func AddressFromBytes(data []byte) (addr address, err error) {
-	if len(data) != 32 {
-		err = fmt.Errorf("Given byte string must be 32 bytes, is %d instead.", len(data))
-		return
+	for i := 0; i < 8; i++ {
+		binary.BigEndian.PutUint32(buf[i*4:(i+1)*4], addr[i])
 	}
-	copy(addr[:], data)
+}
+
+// Converts a subtreeaddress to an address and write the Layer and Tree field.
+func (sta *SubTreeAddress) address() (addr address) {
+	addr.setLayer(sta.Layer)
+	addr.setTree(sta.Tree)
 	return
 }

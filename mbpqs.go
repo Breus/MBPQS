@@ -35,7 +35,7 @@ type PublicKey struct {
 }
 
 // Return a pointer to a Params struct with parameters set to given arguments.
-func setParam(n, w, rtH, chanH, d uint32) *Params {
+func setParam(n, rtH, chanH, d uint32, w uint16) *Params {
 	return &Params{
 		n:         n,
 		w:         w,
@@ -45,7 +45,7 @@ func setParam(n, w, rtH, chanH, d uint32) *Params {
 	}
 }
 
-// Generate a new MBPQS keypair for given parameters.
+// GenerateKeyPair generates a new MBPQS keypair for given parameters.
 func GenerateKeyPair(p Params) (*PrivateKey, *PublicKey, error) {
 	// Create new context including given parameters.
 	ctx, err := newContext(p)
@@ -54,18 +54,18 @@ func GenerateKeyPair(p Params) (*PrivateKey, *PublicKey, error) {
 	}
 
 	// Set n-byte random seed values
-	otsS, err := randomBytes(ctx.params.n)
+	skSeed, err := randomBytes(ctx.params.n)
 	if err != nil {
 		return nil, nil, err
 	}
-	pubS, err := randomBytes(ctx.params.n)
+	skPrf, err := randomBytes(ctx.params.n)
 	if err != nil {
 		return nil, nil, err
 	}
-	msgS, err := randomBytes(ctx.params.n)
+	pubSeed, err := randomBytes(ctx.params.n)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return ctx.deriveKeyPair(otsS, pubS, msgS)
+	return ctx.deriveKeyPair(pubSeed, skSeed, skPrf)
 }

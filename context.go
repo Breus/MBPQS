@@ -2,21 +2,16 @@ package mbpqs
 
 import (
 	"fmt"
-
-	"github.com/Breus/mbpqs/wotsp"
 )
 
 // MBPQS instance.
 type Context struct {
-	params Params // MBPQS parameters.
-	/* WOTS-T Options, includes its Mode (includes parameters).
-	 * Includes the OTS address, the concurrency settings, and the used hash function.
-	 */
-
-	/* WOTS-T mode, concurrency is already in threads,
-	 */
-	wotsMode   wotsp.Mode
-	wotsParams wotsp.Params
+	params       Params // MBPQS parameters
+	wotsLogW     uint8  // logarithm of the Winternitz parameter
+	wotsLen1     uint32 // WOTS+ chains for message
+	wotsLen2     uint32 // WOTS+ chains for checksum
+	wotsLen      uint32 // total number of WOTS+ chains
+	wotsSigBytes uint32 // length of WOTS+ signature
 	// The amount of threads to use in the MBPQS scheme.
 	threads byte
 }
@@ -27,18 +22,7 @@ func newContext(p Params) (ctx *Context, err error) {
 	if p.n != 32 {
 		return nil, fmt.Errorf("Only n=32 is supported for now (it was %d)", p.n)
 	}
-	switch p.w {
-	case 4:
-		ctx.wotsMode = 0
-	case 16:
-		ctx.wotsMode = 1
-	case 256:
-		ctx.wotsMode = 2
-	default:
-		return nil, fmt.Errorf("Please chose w from the {4,16,256} (it was %d)", p.w)
-	}
 	ctx.params = p
-	ctx.wotsParams = ctx.wotsMode.Params()
 	return ctx, nil
 }
 
@@ -52,7 +36,7 @@ func (ctx *Context) deriveKeyPair(skSeed, skPrf, pubSeed []byte) (
 
 	pad := ctx.newScratchPad()
 
-	sk, err := ctx.newPrivateKey(pad, skSeed, pubSeed, skPrf)
+	sk, err := ctx.newPrivateKey(pad, skSeed, pubSeed, skPrf, 0)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -64,15 +48,26 @@ func (ctx *Context) deriveKeyPair(skSeed, skPrf, pubSeed []byte) (
 }
 
 // Generate a privateKey for a context and n-byte random seeds skSeed, pubSeed, and skPrf.
-func (ctx *Context) newPrivateKey(pad scratchPad, skSeed, pubSeed, skPrf []byte) (*PrivateKey, error) {
-	sk := PrivateKey{
+func (ctx *Context) newPrivateKey(pad scratchPad, skSeed, pubSeed, skPrf []byte, seqNo SignatureSeqNo) (*PrivateKey, error) {
+	// Precompute the hashes before building a tree and getting the root.
+	ph := ctx.precomputedHashes(pubSeed, skSeed)
+
+	// Create a root tree and retrieve the root
+	rtBuf := ctx.genRootTree(pad, ph)
+
+	//TODO
+	// rt := rt.getRoot()
+
+	ret := PrivateKey{
 		seqNo:   0,
 		skSeed:  skSeed,
-		pubSeed: pubSeed,
 		skPrf:   skPrf,
+		pubSeed: pubSeed,
 		ctx:     ctx,
+		ph:      ctx.precomputedHashes(pubSeed, skSeed),
 	}
-	return &sk, nil
+
+	return &ret, nil
 }
 
 //TODO
