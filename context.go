@@ -42,12 +42,17 @@ func newContext(p Params) (ctx *Context, err error) {
 	return ctx, nil
 }
 
-// Derive a keypair given for a context and n-byte random seeds otsSeed, pubSeed, and msgSeed.
-func (ctx *Context) deriveKeyPair(otsSeed, pubSeed, msgSeed []byte) (
+// Derive a keypair given for a context and n-byte random seeds skSeed, pubSeed, and skPrf.
+func (ctx *Context) deriveKeyPair(skSeed, skPrf, pubSeed []byte) (
 	*PrivateKey, *PublicKey, error) {
+	if len(pubSeed) != int(ctx.params.n) || len(skSeed) != int(ctx.params.n) || len(skPrf) != int(ctx.params.n) {
+		return nil, nil, fmt.Errorf(
+			"skPrf, skSeed and pubSeed should have length %d", ctx.params.n)
+	}
+
 	pad := ctx.newScratchPad()
 
-	sk, err := ctx.newPrivateKey(pad, otsSeed, pubSeed, msgSeed)
+	sk, err := ctx.newPrivateKey(pad, skSeed, pubSeed, skPrf)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -58,13 +63,13 @@ func (ctx *Context) deriveKeyPair(otsSeed, pubSeed, msgSeed []byte) (
 	return sk, pk, nil
 }
 
-// Generate a privateKey for a context and n-byte random seeds otsSeed, pubSeed, and msgSeed.
-func (ctx *Context) newPrivateKey(pad scratchPad, otsSeed, pubSeed, msgSeed []byte) (*PrivateKey, error) {
+// Generate a privateKey for a context and n-byte random seeds skSeed, pubSeed, and skPrf.
+func (ctx *Context) newPrivateKey(pad scratchPad, skSeed, pubSeed, skPrf []byte) (*PrivateKey, error) {
 	sk := PrivateKey{
-		rootIdx: 0,
-		otsSeed: otsSeed,
+		seqNo:   0,
+		skSeed:  skSeed,
 		pubSeed: pubSeed,
-		msgSeed: msgSeed,
+		skPrf:   skPrf,
 		ctx:     ctx,
 	}
 	return &sk, nil

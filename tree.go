@@ -1,6 +1,11 @@
 package mbpqs
 
-import "fmt"
+import (
+	"crypto"
+	"fmt"
+
+	"github.com/Breus/mbpqs/wotsp"
+)
 
 // rootTree is a MBPQS merkle root tree represented as an array.
 type rootTree struct {
@@ -57,19 +62,32 @@ func (rt *rootTree) node(height, idx uint32) []byte {
 // Generate the leaf by computing a WOTS key pair with the otsAddr and then
 // a leaf using the lTreeAddr.
 func (ctx *Context) genLeaf(pad scratchPad, otsS []byte, lTreeAddr, otsAddr address) []byte {
+	wotsOps := wotsp.Opts{
+		Mode:        ctx.wotsMode,
+		Address:     otsAddr,
+		Concurrency: ctx.threads,
+		crypto.Hash: 0,
+	}
 	pkBuf := pad.wotsPK()
-	ctx.wotsPkGenInto(pad, otsAddr, pkBuf)
+	ctx.wotsPkGenInto(pad, otsAddr, wotsOps, pkBuf)
+	return ctx.lTree(pad, pkBuf, lTreeAddr)
 }
 
-
-func (ctx *Context) wotsPkGenInto(pad scratchpad, otsAddr address, buf []byte){
-	wotsp.GenPublicKey(ctx.)	
-}
-
-/* From this part, we define the scratchpad methods.
- * The scratchpad is ordered as follows:
- * wotsPublicKey (l*n) ||
+/* From here on, we define the scratchpad, created to avoid many memory allocations.
+ * The scratchpad includes a buffer with memory allocated for various computations.
+ * Furthermore, the buffer includes a hashScratchPad, which is used as scratchpad during hash operations.
  */
+
+func (ctx *Context) newScratchPad() scratchPad {
+	n := ctx.p.N
+	pad := scratchPad{
+		buf:  make([]byte, 10*n+64+ctx.p.N*ctx.wotsLen),
+		n:    n,
+		hash: ctx.newHashScratchPad(),
+	}
+	return pad
+}
+
 func (ctx *Context) newScratchPad() scratchPad {
 	return scratchPad{
 		n:   ctx.params.n,
@@ -77,7 +95,26 @@ func (ctx *Context) newScratchPad() scratchPad {
 	}
 }
 
-// Get the slice of the scratchPad for the public-key part.
-func (pad scratchPad) wotsPK() {
-	return pad.buf[:]
+func (pad scratchPad) fBuf() []byte {
+	return pad.buf[:3*pad.n]
+}
+
+func (pad scratchPad) hBuf() []byte {
+	return pad.buf[3*pad.n : 7*pad.n]
+}
+
+func (pad scratchPad) prfBuf() []byte {
+	return pad.buf[7*pad.n : 9*pad.n+32]
+}
+
+func (pad scratchPad) prfAddrBuf() []byte {
+	return pad.buf[9*pad.n+32 : 9*pad.n+64]
+}
+
+func (pad scratchPad) wotsSkSeedBuf() []byte {
+	return pad.buf[9*pad.n+64 : 10*pad.n+64]
+}
+
+func (pad scratchPad) wotsBuf() []byte {
+	return pad.buf[10*pad.n+64:]
 }
