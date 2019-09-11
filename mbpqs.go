@@ -1,7 +1,20 @@
 package mbpqs
 
+import (
+	"fmt"
+	"sync"
+)
+
 // sequence number of signatures.
 type signatureSeqNo uint64
+
+type RootSignature struct {
+	ctx      *Context       // Defines the MBPQS instance which was used to create the Signature.
+	seqNo    signatureSeqNo // sequence number of this signature so you know which index key to verify.
+	drv      []byte         // digest randomized value (r).
+	wotsSig  []byte         // the WOTS signature over the message.
+	authPath []byte         // the authentication path for this signature to the rootTree root node.
+}
 
 // PrivateKey is a MBPQS private key */
 type PrivateKey struct {
@@ -21,6 +34,7 @@ type PrivateKey struct {
 	root    []byte            // n-byte root node of the root tree.
 	ctx     *Context          // Context containing the MBPQS parameters.
 	ph      precomputedHashes // Precomputed hashes from the pubSeed and skSeed.
+	mux     sync.Mutex        // Used when mutual exclusion for the PrivateKey
 }
 
 // PublicKey is a MBPQS public key.
@@ -34,8 +48,8 @@ type PublicKey struct {
 	ctx     *Context // The context containing the algorithm definition for verifiers.
 }
 
-// Return a pointer to a Params struct with parameters set to given arguments.
-func setParam(n, rtH, chanH, d uint32, w uint16) *Params {
+// Return a pointer to a Params struct with parameters initialized to given arguments.
+func initParam(n, rtH, chanH, d uint32, w uint16) *Params {
 	return &Params{
 		n:         n,
 		w:         w,
@@ -53,7 +67,7 @@ func GenerateKeyPair(p Params) (*PrivateKey, *PublicKey, error) {
 		return nil, nil, err
 	}
 
-	// Set n-byte random seed values
+	// Set n-byte random seed values.
 	skSeed, err := randomBytes(ctx.params.n)
 	if err != nil {
 		return nil, nil, err
@@ -67,5 +81,43 @@ func GenerateKeyPair(p Params) (*PrivateKey, *PublicKey, error) {
 		return nil, nil, err
 	}
 
+	// Derive a keypair from the initialized Context.
 	return ctx.deriveKeyPair(pubSeed, skSeed, skPrf)
+}
+
+// Sign the given message with the PrivateKey
+func (sk *PrivateKey) SignChannelRoot(msg []byte) (*RootSignature, error) {
+	// Create a new scratchpad to do the signing computations on to avoid memory allocations.
+	pad := sk.ctx.newScratchPad()
+	seqNo, err := sk.getSeqNo()
+	if err != nil {
+		return nil, err
+	}
+
+	var otsAddr address
+	// TODO: define right address
+	otsAddr.setLayer(1) // 1 for root tree
+	otsAddr.setTree(uint64(seqNo))
+
+	sig := RootSignature{
+		ctx:     sk.ctx,
+		seqNo:   seqNo,
+		drv:     sk.ctx.prfUint64(pad, uint64(seqNo), sk.skPrf),
+		wotsSig: sk.ctx.wotsSign(pad, msg, sk.pubSeed, sk.skSeed, otsAddr),
+	}
+
+	return &sig, nil
+}
+
+// Retrieves the current index of the first unusued channel signing key in the RootTree.
+func (sk *PrivateKey) GetSeqNo() (signatureSeqNo, error) {
+	sk.mux.Lock()
+	// Unlock the lock when the funtion is finished.
+	defer sk.mux.Unlock()
+
+	if uint64(sk.seqNo) == (1<<sk.ctx.params.rootH - 1) {
+		return 0, fmt.Errorf("no unused signing keys left")
+	}
+	sk.seqNo++
+	return sk.seqNo - 1, nil
 }
