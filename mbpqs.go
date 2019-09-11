@@ -1,11 +1,11 @@
 package mbpqs
 
-// Sequence number of signatures.
-type SignatureSeqNo uint64
+// sequence number of signatures.
+type signatureSeqNo uint64
 
 // PrivateKey is a MBPQS private key */
 type PrivateKey struct {
-	seqNo SignatureSeqNo // The seqNo of the first unused signing key.
+	seqNo signatureSeqNo // The seqNo of the first unused signing key.
 	/* n-byte skSeed is used to pseudorandomly generate wots channelkeys seeds.
 	 * S in RFC8931, SK_1 and S in XMSS-T paper.
 	 */
@@ -25,11 +25,11 @@ type PrivateKey struct {
 
 // PublicKey is a MBPQS public key.
 type PublicKey struct {
-	height byte   // Height of the root tree.
-	root   []byte // n-byte root node of the root tree.
+	root []byte // n-byte root node of the root tree.
 	/* n-byte pubSeed used to randomize the hash to generate WOTS verification keys.
 	 * SEED in RFC8931, SEED in XMSS-T paper
 	 */
+	ph      precomputedHashes // Precomputed pubSeed hash.
 	pubSeed []byte
 	ctx     *Context // The context containing the algorithm definition for verifiers.
 }

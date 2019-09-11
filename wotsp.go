@@ -25,7 +25,7 @@ func (ctx *Context) wotsChainLengths(msg []byte) []uint8 {
 	ctx.toBaseW(msg, ret[:ctx.wotsLen1])
 
 	// compute the checksum
-	var csum uint32 = 0
+	var csum uint32 // = 0 init
 	for i := 0; i < int(ctx.wotsLen1); i++ {
 		csum += uint32(ctx.params.w) - 1 - uint32(ret[i])
 	}
@@ -48,8 +48,8 @@ func (ctx *Context) toBaseW(input []byte, output []uint8) {
 		return
 	}
 
-	var in uint32 = 0
-	var out uint32 = 0
+	var in uint32  // = 0 init
+	var out uint32 // = 0 init
 	var total uint8
 	var bits uint8
 

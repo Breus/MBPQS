@@ -41,7 +41,7 @@ type hashScratchPad struct {
 }
 
 // This function initializes the precomputedHashes with their precomputed values.
-func (ctx *Context) precomputedHashes(pubSeed, skSeed []byte) (
+func (ctx *Context) precomputeHashes(pubSeed, skSeed []byte) (
 	ph precomputedHashes) {
 	var hashPrfSk, hashPrfPub hash.Hash
 	if ctx.params.n == 32 {
@@ -118,13 +118,41 @@ func (ctx *Context) newHashScratchPad() (pad hashScratchPad) {
 }
 
 /* From here on, the functions F, H, H_Msg, and PRF are implemented.
- * F(toByte(0,32) || KEY || i):
- * H(toByte(1,32) || KEY || i): hash up nodes in trees.
- * H_msg(toByte(2,32) || KEY || i): compute digest of message to sign.
- * PRF(toByte(3,32) || KEY || i):
+ * Keyed hash function F, used in the WOTSchaining.
+ * F(toByte(0,32) || KEY(n) || i(n)): {0,1}^2*8n -> {0,1}^8n
+ *
+ * Keyed hash function H, used to hash up nodes in trees.
+ * H(toByte(1,32) || KEY(n) || i(2n)): {0,1}^(3*8n) -> {0,1}^8n
+ *
+ * Keyed hash function H_msg, used to compute digest of message to sign.
+ * H_msg(toByte(2,32) || KEY(3n) || i(*)): {0,1}^(3*8n + m) -> {0,1}^8n
+ *
+ * Pseudorandom function PRF, used to expand the wots_seed and,
+ * also used to pseudorandomly generated wots_seeds form skSeed.
+ * PRF(toByte(3,32) || KEY(n) || i(32bit)): {0,1}^(8n+32) -> {0,1}^8n
  */
 
-// Compute F(toByte(0,32) || KEY || i)
+// Compute F(toByte(0,32) || KEY || i) used in WOTS
+func (ctx *Context) f(in, pubSeed []byte, addr address) []byte {
+	ret := make([]byte, ctx.params.n)
+	ctx.fInto(ctx.newScratchPad(), in, ctx.precomputeHashes(pubSeed, nil), addr, ret)
+	return ret
+}
+
+// Compute F used in WOTS and put it into out
+func (ctx *Context) fInto(pad scratchPad, in []byte, ph precomputedHashes, addr address, out []byte) {
+	buf := pad.fBuf()
+	encodeUint64Into(hashPaddingF, buf[:ctx.params.n])
+	// Generate the n byte key.
+	addr.setKeyAndMask(0)
+	ph.prfAddrPubSeedInto(pad, addr, buf[ctx.params.n:ctx.params.n*2])
+	// Generate the n byte bitmask.
+	addr.setKeyAndMask(1)
+	ph.prfAddrPubSeedInto(pad, addr, buf[2*ctx.params.n:])
+	// Xor the input with the bitmask in place.
+	xor.BytesSameLen(buf[2*ctx.params.n:], in, buf[2*ctx.params.n:])
+	ctx.hashInto(pad, buf, out)
+}
 
 /* Computes H(toByte(1,32) || KEY || i).
  * Used to hash up trees (lTree, RootTree, ChainTree).

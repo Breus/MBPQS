@@ -5,9 +5,9 @@ import (
 )
 
 const (
-	OtsAddrType   = 0
-	LTreeAddrType = 1
-	TreeAddrType  = 2
+	otsAddrType   = 0
+	lTreeAddrType = 1
+	treeAddrType  = 2
 )
 
 // Address type for all address types 32 byte.

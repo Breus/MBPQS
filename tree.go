@@ -33,12 +33,26 @@ type scratchPad struct {
 
 // Allocates memory for a merkle tree of n-byte string of height H.
 func newRootTree(H, n uint32) rootTree {
-	buf := make([]byte, ((1<<(H+1))-1)*n)
+	buf := make([]byte, (1<<(H)-1)*n)
 	return rootTree{
 		H:   H,
 		n:   n,
 		buf: buf,
 	}
+}
+
+// Makes a root tree from a buffer.
+func rootTreeFromBuf(buf []byte, height, n uint32) rootTree {
+	return rootTree{
+		H:   height,
+		n:   n,
+		buf: buf,
+	}
+}
+
+// Gets the root node of the root tree.
+func (rt *rootTree) getRootNode() []byte {
+	return rt.node(rt.H-1, 0)
 }
 
 // Generate the root tree by computing WOTS keypairs from the skSeed and then hashing up.
@@ -62,9 +76,9 @@ func (ctx *Context) genRootTreeInto(pad scratchPad, ph precomputedHashes, rt roo
 	}
 	addr := sta.address()
 	otsAddr.setSubTreeFrom(addr)
-	otsAddr.setType(OtsAddrType)
+	otsAddr.setType(otsAddrType)
 	lTreeAddr.setSubTreeFrom(addr)
-	lTreeAddr.setType(LTreeAddrType)
+	lTreeAddr.setType(lTreeAddrType)
 	nodeAddr.setSubTreeFrom(addr)
 
 	// First, compute the leafs of the tree.
@@ -83,7 +97,11 @@ func (ctx *Context) genRootTreeInto(pad scratchPad, ph precomputedHashes, rt roo
 		nodeAddr.setTreeHeight(height - 1)
 		// Looping through al the nodes on a rootTree layer.
 		for idx = 0; idx < (1 << (ctx.params.rootH - height)); idx++ {
-
+			nodeAddr.setTreeIndex(idx)
+			// Hashing pairs of nodes on a layer into eachother.
+			ctx.hInto(pad, rt.node(height-1, 2*idx),
+				rt.node(height-1, 2*idx+1),
+				ph, nodeAddr, rt.node(height, idx))
 		}
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// MBPQS instance.
+// Context including a full MBPQS instance.
 type Context struct {
 	params       Params // MBPQS parameters
 	wotsLogW     uint8  // logarithm of the Winternitz parameter
@@ -40,7 +40,7 @@ func (ctx *Context) deriveKeyPair(skSeed, skPrf, pubSeed []byte) (
 	if err != nil {
 		return nil, nil, err
 	}
-	pk, err := sk.derivePublicKey()
+	pk := sk.derivePublicKey()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -48,29 +48,32 @@ func (ctx *Context) deriveKeyPair(skSeed, skPrf, pubSeed []byte) (
 }
 
 // Generate a privateKey for a context and n-byte random seeds skSeed, pubSeed, and skPrf.
-func (ctx *Context) newPrivateKey(pad scratchPad, skSeed, pubSeed, skPrf []byte, seqNo SignatureSeqNo) (*PrivateKey, error) {
-	// Precompute the hashes before building a tree and getting the root.
-	ph := ctx.precomputedHashes(pubSeed, skSeed)
-
-	// Create a root tree and retrieve the root
-	rtBuf := ctx.genRootTree(pad, ph)
-
-	//TODO
-	// rt := rt.getRoot()
-
+func (ctx *Context) newPrivateKey(pad scratchPad, skSeed, pubSeed, skPrf []byte, seqNo signatureSeqNo) (*PrivateKey, error) {
 	ret := PrivateKey{
 		seqNo:   0,
 		skSeed:  skSeed,
 		skPrf:   skPrf,
 		pubSeed: pubSeed,
 		ctx:     ctx,
-		ph:      ctx.precomputedHashes(pubSeed, skSeed),
+		ph:      ctx.precomputeHashes(pubSeed, skSeed),
 	}
+
+	// Create a root tree to retrieve the root.
+	rt := ctx.genRootTree(pad, ret.ph)
+
+	ret.root = make([]byte, ctx.params.n)
+	copy(ret.root, rt.getRootNode())
 
 	return &ret, nil
 }
 
-//TODO
-func (sk *PrivateKey) derivePublicKey() (*PublicKey, error) {
-	return nil, nil
+// Return the MBPQS PublicKey derived from this PrivateKey.
+func (sk *PrivateKey) derivePublicKey() *PublicKey {
+	ret := PublicKey{
+		ctx:     sk.ctx,
+		pubSeed: sk.pubSeed,
+		ph:      sk.ctx.precomputeHashes(sk.pubSeed, nil),
+		root:    sk.root,
+	}
+	return &ret
 }
