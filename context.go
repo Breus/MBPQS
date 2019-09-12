@@ -17,12 +17,12 @@ type Context struct {
 }
 
 // Allocates memory for a Context and sets the given parameters in it.
-func newContext(p Params) (ctx *Context, err error) {
+func newContext(p *Params) (ctx *Context, err error) {
 	ctx = new(Context)
 	if p.n != 32 {
 		return nil, fmt.Errorf("Only n=32 is supported for now (it was %d)", p.n)
 	}
-	ctx.params = p
+	ctx.params = *p
 	return ctx, nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"hash"
+	"io"
 	"reflect"
 
 	"github.com/templexxx/xor"
@@ -180,6 +181,43 @@ func (ctx *Context) hInto(pad scratchPad, left, right []byte,
 	xor.BytesSameLen(buf[ctx.params.n*3:], right, buf[ctx.params.n*3:])
 
 	ctx.hashInto(pad, buf, out)
+}
+
+// Compute H_msg(toByte(2,32) || KEY(3n) || i(*))
+// Randomized hasher.
+func (ctx *Context) hashMessage(pad scratchPad, msg,
+	R, root []byte, idx uint64) ([]byte, error) {
+	ret := make([]byte, ctx.params.n)
+	err := ctx.hashMessageInto(pad, msg, R, root, idx, ret)
+	if err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
+
+func (ctx *Context) hashMessageInto(pad scratchPad, msg,
+	R, root []byte, idx uint64, out []byte) error {
+	var h io.Writer
+	if ctx.params.n == 32 {
+		h = sha256.New()
+	} else { // n == 64
+		h = sha512.New()
+	}
+	// Same as reference XMSS implementation: padding | R | root | indx | M
+	h.Write(encodeUint64(hashPaddingHashMsg, int(ctx.params.n)))
+	h.Write(R)
+	h.Write(root)
+	h.Write(encodeUint64(idx, int(ctx.params.n)))
+
+	//TODO: check if equal
+	h.Write(msg)
+	// _, err := io.Copy(h, msg)
+	// if err != nil {
+	// 	return err
+	// }
+
+	(h.(hash.Hash)).Sum(out[:0])
+	return nil
 }
 
 // Compute PRF(toByte(3,32) || KEY || i)

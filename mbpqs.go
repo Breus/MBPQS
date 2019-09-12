@@ -1,6 +1,7 @@
 package mbpqs
 
 import (
+	"crypto/subtle"
 	"fmt"
 	"sync"
 )
@@ -62,7 +63,7 @@ func InitParam(n, rtH, chanH, d uint32, w uint16) *Params {
 }
 
 // GenerateKeyPair generates a new MBPQS keypair for given parameters.
-func GenerateKeyPair(p Params) (*PrivateKey, *PublicKey, error) {
+func GenerateKeyPair(p *Params) (*PrivateKey, *PublicKey, error) {
 	// Create new context including given parameters.
 	ctx, err := newContext(p)
 	if err != nil {
@@ -88,19 +89,24 @@ func GenerateKeyPair(p Params) (*PrivateKey, *PublicKey, error) {
 }
 
 // SignChannelRoot is used to sign the n-byte channel root hash with the PrivateKey
-func (sk *PrivateKey) SignChannelRoot(msg []byte) (*RootSignature, error) {
+func (sk *PrivateKey) SignChannelRoot(chRt []byte) (*RootSignature, error) {
 	// Create a new scratchpad to do the signing computations on to avoid memory allocations.
 	pad := sk.ctx.newScratchPad()
 	seqNo, err := sk.GetSeqNo()
 	if err != nil {
 		return nil, err
 	}
-
+	// Compute the digest randomized value (drv)
+	drv := sk.ctx.prfUint64(pad, uint64(seqNo), sk.skPrf)
+	// Hashed channelroot with H_msg
+	hashChRt, err := sk.ctx.hashMessage(pad, chRt, drv, sk.root, uint64(seqNo))
+	if err != nil {
+		return nil, err
+	}
 	// Set otsAddr to calculate wotsSign over the message.
-	var otsAddr address
-	// TODO: define right address
-	otsAddr.setLayer(1) // 1 for root tree?
-	otsAddr.setTree(uint64(seqNo))
+	var otsAddr address // All fields should be 0, that's why init is enough.
+	// TODO: check address for OTS
+	otsAddr.setOTS(uint32(seqNo)) // Except the OTS address which is seqNo = index.
 
 	// Compute the root tree to build the authentication path
 	rt := sk.ctx.genRootTree(pad, sk.ph)
@@ -109,12 +115,70 @@ func (sk *PrivateKey) SignChannelRoot(msg []byte) (*RootSignature, error) {
 	sig := RootSignature{
 		ctx:      sk.ctx,
 		seqNo:    seqNo,
-		drv:      sk.ctx.prfUint64(pad, uint64(seqNo), sk.skPrf),
-		wotsSig:  sk.ctx.wotsSign(pad, msg, sk.pubSeed, sk.skSeed, otsAddr),
+		drv:      drv,
+		wotsSig:  sk.ctx.wotsSign(pad, hashChRt, sk.pubSeed, sk.skSeed, otsAddr),
 		authPath: authPath,
 	}
 
 	return &sig, nil
+}
+
+// VerifyChannelRoot is used to verify the signature on the channel root.
+func (pk *PublicKey) VerifyChannelRoot(rtSig *RootSignature, chRt []byte) (bool, error) {
+	// Create a new scratchpad to do the verifiyng computations on.
+	pad := pk.ctx.newScratchPad()
+	hashChRt, err := pk.ctx.hashMessage(pad, chRt, rtSig.drv, pk.root, uint64(rtSig.seqNo))
+	if err != nil {
+		return false, err
+	}
+
+	// Derive the wotsPk from the signature.
+	var otsAddr address // all fields are 0, like they are supposed to.
+	otsAddr.setOTS(uint32(rtSig.seqNo))
+
+	// Create the wotsPk on the scratchpad.
+	wotsPk := pad.wotsBuf()
+	pk.ctx.wotsPkFromSigInto(pad, rtSig.wotsSig, hashChRt, pk.ph, otsAddr, wotsPk)
+
+	// Create the leaf from the pk.
+	var lTreeAddr address            // init with all fields 0.
+	lTreeAddr.setType(lTreeAddrType) // Set address type.
+	lTreeAddr.setLTree(uint32(rtSig.seqNo))
+	curHash := pk.ctx.lTree(pad, wotsPk, pk.ph, lTreeAddr)
+
+	// Now we use the authentication path to hash up to the root.
+	var nodeAddr address
+	var height uint32
+	nodeAddr.setType(treeAddrType)
+
+	// In this slices, we will compute the offsets of
+	offset := uint32(rtSig.seqNo)
+
+	for height = 1; height <= pk.ctx.params.rootH; height++ {
+		nodeAddr.setTreeHeight(height - 1)
+		nodeAddr.setTreeIndex(offset >> 1)
+
+		sibling := rtSig.authPath[(height-1)*pk.ctx.params.n : height*pk.ctx.params.n]
+
+		var left, right []byte
+
+		if offset&1 == 0 {
+			left = curHash
+			right = sibling
+		} else {
+			left = sibling
+			right = curHash
+		}
+
+		pk.ctx.hInto(pad, left, right, pk.ph, nodeAddr, curHash)
+		offset >>= 1
+	}
+	hashChRt = curHash
+
+	if subtle.ConstantTimeCompare(hashChRt, pk.root) != 1 {
+		return false, fmt.Errorf("invalid signature")
+	}
+	return true, nil
 }
 
 // GetSeqNo retrieves the current index of the first unusued channel signing key in the RootTree.
