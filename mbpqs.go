@@ -51,7 +51,7 @@ type PublicKey struct {
 }
 
 // Return a pointer to a Params struct with parameters initialized to given arguments.
-func initParam(n, rtH, chanH, d uint32, w uint16) *Params {
+func InitParam(n, rtH, chanH, d uint32, w uint16) *Params {
 	return &Params{
 		n:         n,
 		w:         w,

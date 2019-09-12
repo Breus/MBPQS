@@ -48,7 +48,7 @@ func (ctx *Context) deriveKeyPair(skSeed, skPrf, pubSeed []byte) (
 }
 
 // Generate a privateKey for a context and n-byte random seeds skSeed, pubSeed, and skPrf.
-func (ctx *Context) newPrivateKey(pad scratchPad, skSeed, pubSeed, skPrf []byte, seqNo signatureSeqNo) (*PrivateKey, error) {
+func (ctx *Context) newPrivateKey(pad scratchPad, skSeed, pubSeed, skPrf []byte, seqNo SignatureSeqNo) (*PrivateKey, error) {
 	ret := PrivateKey{
 		seqNo:   0,
 		skSeed:  skSeed,
