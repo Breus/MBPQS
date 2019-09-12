@@ -15,6 +15,17 @@ type SubTreeAddress struct {
 	Tree uint64
 }
 
+// Represents a height t(H) merkle tree of n-byte strings T[i,j] as
+//
+//                    T[t-1,0]
+//                 /
+//               (...)        (...)
+//            /           \            \
+//         T[1,0]        T[1,1]  ...  T[1,2^(t-2)-1]
+//        /     \       /      \          \
+//     T[0,0] T[0,1] T[0,2]  T[0,3]  ...  T[0,2^(t-1)-1]
+//
+// as an (2^t-1)*n byte array.
 // rootTree is a MBPQS merkle root tree represented as an array.
 type rootTree struct {
 	H   uint32
@@ -155,6 +166,20 @@ func (ctx *Context) lTree(pad scratchPad, wotsPk []byte, ph precomputedHashes, a
 	ret := make([]byte, ctx.params.n)
 	// Copy the n-byte root leaf into the ret byte slice.
 	copy(ret, wotsPk[:ctx.params.n])
+	return ret
+}
+
+// Return the authentication path for the given leaf.
+func (rt rootTree) AuthPath(leaf uint32) []byte {
+	ret := make([]byte, rt.n*rt.H)
+	node := leaf
+	var i uint32
+	for i = 0; i < rt.H; i++ {
+		// node ^ 1 (bitwise xor) is the index offset of the sibling of node to pair with.
+		copy(ret[i*rt.n:], rt.node(i, node^1))
+		// node / 2 is the index offset of the parent of node on its layer.
+		node = node / 2
+	}
 	return ret
 }
 

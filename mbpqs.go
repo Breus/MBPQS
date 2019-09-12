@@ -5,10 +5,11 @@ import (
 	"sync"
 )
 
-// SignatureSeqNo is the sequence number of signatures (leaf index).
-type SignatureSeqNo uint64
+// SignatureSeqNo is the sequence number of signatures.
+// Should start at 0 to compute AuthPath and is synced with leaf index.
+type SignatureSeqNo uint32
 
-// RootSignature holds a signature on a channel by the rootTree.
+// RootSignature holds a signature on a channel by the rootTree.b
 type RootSignature struct {
 	ctx      *Context       // Defines the MBPQS instance which was used to create the Signature.
 	seqNo    SignatureSeqNo // sequence number of this signature so you know which index key to verify.
@@ -86,7 +87,7 @@ func GenerateKeyPair(p Params) (*PrivateKey, *PublicKey, error) {
 	return ctx.deriveKeyPair(pubSeed, skSeed, skPrf)
 }
 
-// Sign the n-byte channel root hash with the PrivateKey
+// SignChannelRoot is used to sign the n-byte channel root hash with the PrivateKey
 func (sk *PrivateKey) SignChannelRoot(msg []byte) (*RootSignature, error) {
 	// Create a new scratchpad to do the signing computations on to avoid memory allocations.
 	pad := sk.ctx.newScratchPad()
@@ -98,24 +99,25 @@ func (sk *PrivateKey) SignChannelRoot(msg []byte) (*RootSignature, error) {
 	// Set otsAddr to calculate wotsSign over the message.
 	var otsAddr address
 	// TODO: define right address
-	otsAddr.setLayer(1) // 1 for root tree
+	otsAddr.setLayer(1) // 1 for root tree?
 	otsAddr.setTree(uint64(seqNo))
 
 	// Compute the root tree to build the authentication path
 	rt := sk.ctx.genRootTree(pad, sk.ph)
-	rt.AuthPath()
+	authPath := rt.AuthPath(uint32(seqNo))
 
 	sig := RootSignature{
-		ctx:     sk.ctx,
-		seqNo:   seqNo,
-		drv:     sk.ctx.prfUint64(pad, uint64(seqNo), sk.skPrf),
-		wotsSig: sk.ctx.wotsSign(pad, msg, sk.pubSeed, sk.skSeed, otsAddr),
+		ctx:      sk.ctx,
+		seqNo:    seqNo,
+		drv:      sk.ctx.prfUint64(pad, uint64(seqNo), sk.skPrf),
+		wotsSig:  sk.ctx.wotsSign(pad, msg, sk.pubSeed, sk.skSeed, otsAddr),
+		authPath: authPath,
 	}
 
 	return &sig, nil
 }
 
-// Retrieves the current index of the first unusued channel signing key in the RootTree.
+// GetSeqNo retrieves the current index of the first unusued channel signing key in the RootTree.
 func (sk *PrivateKey) GetSeqNo() (SignatureSeqNo, error) {
 	sk.mux.Lock()
 	// Unlock the lock when the funtion is finished.
