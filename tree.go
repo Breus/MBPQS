@@ -2,10 +2,12 @@ package mbpqs
 
 import (
 	"fmt"
+	"runtime"
+	"sync"
 )
 
-// SubTreeAddress represents the position of a subtree in the full MBPQS tree.
-type SubTreeAddress struct {
+// RootTreeAddress represents the position of a subtree in the full MBPQS tree.
+type RootTreeAddress struct {
 	// The root tree has layer 0.
 	Layer uint32
 
@@ -44,7 +46,7 @@ type scratchPad struct {
 
 // Allocates memory for a merkle tree of n-byte string of height H.
 func newRootTree(H, n uint32) rootTree {
-	buf := make([]byte, (1<<(H)-1)*n)
+	buf := make([]byte, ((1<<H)-1)*n)
 	return rootTree{
 		H:   H,
 		n:   n,
@@ -68,7 +70,7 @@ func (rt *rootTree) getRootNode() []byte {
 
 // Generate the root tree by computing WOTS keypairs from the skSeed and then hashing up.
 func (ctx *Context) genRootTree(pad scratchPad, ph precomputedHashes) rootTree {
-	rt := newRootTree(ctx.params.rootH, ctx.params.n)
+	rt := newRootTree(ctx.params.rootH+1, ctx.params.n)
 	ctx.genRootTreeInto(pad, ph, rt)
 	return rt
 }
@@ -80,24 +82,70 @@ func (ctx *Context) genRootTreeInto(pad scratchPad, ph precomputedHashes, rt roo
 	// Init address for OTS, LTree nodes, and Tree nodes.
 	var otsAddr, lTreeAddr, nodeAddr address
 
-	// Set root tree addresses
-	sta := SubTreeAddress{
+	// Set root tree address
+	rta := RootTreeAddress{
 		Layer: 0,
-		Tree:  0,
+		Tree:  2147483649000000000,
 	}
-	addr := sta.address()
+	addr := rta.address()
 	otsAddr.setSubTreeFrom(addr)
 	otsAddr.setType(otsAddrType)
 	lTreeAddr.setSubTreeFrom(addr)
 	lTreeAddr.setType(lTreeAddrType)
 	nodeAddr.setSubTreeFrom(addr)
+	nodeAddr.setType(treeAddrType)
 
 	// First, compute the leafs of the tree.
 	var idx uint32
-	for idx = 0; idx < (1 << ctx.params.rootH); idx++ {
-		lTreeAddr.setLTree(idx)
-		otsAddr.setOTS(idx)
-		copy(rt.node(0, idx), ctx.genLeaf(pad, ph, lTreeAddr, otsAddr))
+
+	if ctx.threads == 1 {
+		for idx = 0; idx < (1 << ctx.params.rootH); idx++ {
+			lTreeAddr.setLTree(idx)
+			otsAddr.setOTS(idx)
+			copy(rt.node(0, idx), ctx.genLeaf(pad, ph, lTreeAddr, otsAddr))
+		}
+	} else {
+		// The code in this branch does exactly the same as in the
+		// branch above, but in parallel.
+		wg := &sync.WaitGroup{}
+		mux := &sync.Mutex{}
+		var perBatch uint32 = 32
+		threads := ctx.threads
+		if threads == 0 {
+			threads = runtime.NumCPU()
+		}
+		wg.Add(threads)
+
+		for i := 0; i < threads; i++ {
+			go func(lTreeAddr, otsAddr address) {
+				pad := ctx.newScratchPad()
+				var ourIdx uint32
+				for {
+					mux.Lock()
+					ourIdx = idx
+					idx += perBatch
+					mux.Unlock()
+					if ourIdx >= 1<<ctx.params.rootH {
+						break
+					}
+					ourEnd := ourIdx + perBatch
+					if ourEnd > 1<<ctx.params.rootH {
+						ourEnd = 1 << ctx.params.rootH
+					}
+					for ; ourIdx < ourEnd; ourIdx++ {
+						lTreeAddr.setLTree(ourIdx)
+						otsAddr.setOTS(ourIdx)
+						copy(rt.node(0, ourIdx), ctx.genLeaf(
+							pad,
+							ph,
+							lTreeAddr,
+							otsAddr))
+					}
+				}
+				wg.Done()
+			}(lTreeAddr, otsAddr)
+		}
+		wg.Wait()
 	}
 
 	// Next, compute the internal nodes and the root node.
@@ -119,7 +167,7 @@ func (ctx *Context) genRootTreeInto(pad scratchPad, ph precomputedHashes, rt roo
 
 // Returns a slice of the node at given height and index idx.
 func (rt *rootTree) node(height, idx uint32) []byte {
-	ptr := rt.n * ((1<<rt.H + 1) - (1 << (rt.H + 1 - height)) + idx)
+	ptr := rt.n * ((1 << rt.H) - (1 << (rt.H - height)) + idx)
 	return rt.buf[ptr : ptr+rt.n]
 }
 
@@ -220,4 +268,18 @@ func (pad scratchPad) wotsSkSeedBuf() []byte {
 
 func (pad scratchPad) wotsBuf() []byte {
 	return pad.buf[10*pad.n+64:]
+}
+
+/* ONLY FOR TESTING PURPOSES!!!
+ *
+ */
+
+func (ctx *Context) getWotsSeed(pad scratchPad, ph precomputedHashes,
+	addr address) []byte {
+	addr.setChain(0)
+	addr.setHash(0)
+	addr.setKeyAndMask(0)
+	ret := make([]byte, ctx.params.n)
+	ph.prfAddrSkSeedInto(pad, addr, ret)
+	return ret
 }

@@ -15,7 +15,7 @@ type Context struct {
 	indexBytes   uint32 // size of an index
 	sigBytes     uint32 // size of signature
 	// The amount of threads to use in the MBPQS scheme.
-	threads byte
+	threads int
 }
 
 // Allocates memory for a Context and sets the given parameters in it.
