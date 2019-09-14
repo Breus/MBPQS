@@ -67,7 +67,6 @@ func (ctx *Context) precomputeHashes(pubSeed, skSeed []byte) (
 	 */
 	hashValPrfPub := reflect.ValueOf(hashPrfPub).Elem()
 	hashValPrfSk := reflect.ValueOf(hashPrfSk).Elem()
-
 	ph.prfAddrPubSeedInto = func(pad scratchPad, addr address, out []byte) {
 		// Write the precomputed hash value on the hashPad.
 		pad.hashPad.hVal.Set(hashValPrfPub)
@@ -80,6 +79,7 @@ func (ctx *Context) precomputeHashes(pubSeed, skSeed []byte) (
 		// hash.Sum appends the hash to the input byte slice. As our input
 		// byte slice hash enough capacity, it will write it in/out in there.
 		pad.hashPad.h.Sum(out[:0])
+
 	}
 	if skSeed == nil {
 		return
@@ -93,6 +93,7 @@ func (ctx *Context) precomputeHashes(pubSeed, skSeed []byte) (
 		pad.hashPad.h.Write(addrBuf)
 		pad.hashPad.h.Sum(out[:0]) // Again, in/out on the input.
 	}
+
 	return
 }
 
@@ -237,5 +238,21 @@ func (ctx *Context) prfUint64Into(pad scratchPad, i uint64, key, out []byte) {
 	// Append the input i to it.
 	encodeUint64Into(i, buf[ctx.params.n*2:])
 	// Hash it into out.
+	ctx.hashInto(pad, buf, out)
+}
+
+// Compute PRF(toByte(3,32) || KEY || ADDR)
+func (ctx *Context) prfAddr(pad scratchPad, addr address, key []byte) []byte {
+	ret := make([]byte, ctx.params.n)
+	ctx.prfAddrInto(pad, addr, key, ret)
+	return ret
+}
+
+// Compute PRF(toByte(3,32) || KEY || ADDR) and store into out
+func (ctx *Context) prfAddrInto(pad scratchPad, addr address, key, out []byte) {
+	buf := pad.prfBuf()
+	encodeUint64Into(hashPaddingPRF, buf[:ctx.params.n])
+	copy(buf[ctx.params.n:], key)
+	addr.writeInto(buf[ctx.params.n*2:])
 	ctx.hashInto(pad, buf, out)
 }

@@ -12,17 +12,32 @@ type Context struct {
 	wotsLen2     uint32 // WOTS+ chains for checksum
 	wotsLen      uint32 // total number of WOTS+ chains
 	wotsSigBytes uint32 // length of WOTS+ signature
+	indexBytes   uint32 // size of an index
+	sigBytes     uint32 // size of signature
 	// The amount of threads to use in the MBPQS scheme.
 	threads byte
 }
 
 // Allocates memory for a Context and sets the given parameters in it.
-func newContext(p *Params) (ctx *Context, err error) {
+func newContext(p Params) (ctx *Context, err error) {
 	ctx = new(Context)
-	if p.n != 32 {
-		return nil, fmt.Errorf("Only n=32 is supported for now (it was %d)", p.n)
+	if p.n != 32 && p.n != 64 {
+		return nil, fmt.Errorf("Only n=32 and n = 64 are supported for now (it was %d)", p.n)
 	}
-	ctx.params = *p
+	if p.w != 4 && p.w != 16 && p.w != 256 {
+		return nil, fmt.Errorf("w = {4,16,256} are suported, no other values (w was %d)", p.w)
+	}
+	if p.rootH > 20 {
+		return nil, fmt.Errorf("Root tree may at most be ")
+	}
+	ctx.params = p
+	ctx.indexBytes = 4
+	ctx.wotsLogW = p.WotsLogW()
+	ctx.wotsLen1 = p.WotsLen1()
+	ctx.wotsLen2 = p.WotsLen2()
+	ctx.wotsLen = p.WotsLen()
+	ctx.wotsSigBytes = p.WotsSignatureSize()
+	ctx.sigBytes = (ctx.indexBytes + p.n + ctx.wotsSigBytes + p.rootH*p.n)
 	return ctx, nil
 }
 

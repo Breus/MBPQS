@@ -51,21 +51,21 @@ type PublicKey struct {
 	ctx     *Context // The context containing the algorithm definition for verifiers.
 }
 
-// Return a pointer to a Params struct with parameters initialized to given arguments.
+// InitParam returns a pointer to a Params struct with parameters initialized to given arguments.
 func InitParam(n, rtH, chanH, d uint32, w uint16) *Params {
 	return &Params{
-		n:         n,
-		w:         w,
-		rootH:     rtH,
-		initChanH: chanH,
-		d:         d,
+		n:     n,
+		w:     w,
+		rootH: rtH,
+		chanH: chanH,
+		d:     d,
 	}
 }
 
 // GenerateKeyPair generates a new MBPQS keypair for given parameters.
 func GenerateKeyPair(p *Params) (*PrivateKey, *PublicKey, error) {
 	// Create new context including given parameters.
-	ctx, err := newContext(p)
+	ctx, err := newContext(*p)
 	if err != nil {
 		return nil, nil, err
 	}
