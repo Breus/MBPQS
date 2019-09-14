@@ -30,9 +30,9 @@ type RootTreeAddress struct {
 // as an (2^t-1)*n byte array.
 // rootTree is a MBPQS merkle root tree represented as an array.
 type rootTree struct {
-	H   uint32
-	n   uint32
-	buf []byte
+	height uint32
+	n      uint32
+	buf    []byte
 }
 
 // To avoid constant memory allocations when computing the rootTree,
@@ -45,27 +45,22 @@ type scratchPad struct {
 }
 
 // Allocates memory for a merkle tree of n-byte string of height H.
-func newRootTree(H, n uint32) rootTree {
-	buf := make([]byte, ((1<<H)-1)*n)
-	return rootTree{
-		H:   H,
-		n:   n,
-		buf: buf,
-	}
+func newRootTree(height, n uint32) rootTree {
+	return rootTreeFromBuf(make([]byte, ((1<<height)-1)*n), height, n)
 }
 
 // Makes a root tree from a buffer.
 func rootTreeFromBuf(buf []byte, height, n uint32) rootTree {
 	return rootTree{
-		H:   height,
-		n:   n,
-		buf: buf,
+		height: height,
+		n:      n,
+		buf:    buf,
 	}
 }
 
 // Gets the root node of the root tree.
 func (rt *rootTree) getRootNode() []byte {
-	return rt.node(rt.H-1, 0)
+	return rt.node(rt.height-1, 0)
 }
 
 // Generate the root tree by computing WOTS keypairs from the skSeed and then hashing up.
@@ -167,8 +162,14 @@ func (ctx *Context) genRootTreeInto(pad scratchPad, ph precomputedHashes, rt roo
 
 // Returns a slice of the node at given height and index idx.
 func (rt *rootTree) node(height, idx uint32) []byte {
-	ptr := rt.n * ((1 << rt.H) - (1 << (rt.H - height)) + idx)
-	return rt.buf[ptr : ptr+rt.n]
+	ptr := rt.n * ((1 << rt.height) - (1 << (rt.height - height)) + idx)
+	//fmt.Printf("rt.height: %d", rt.height)
+	//fmt.Printf("Length roottree buf: %d", len(rt.buf))
+	fmt.Printf("CAP: %d", cap(rt.buf))
+	//fmt.Printf("Length ptr: %d", ptr)
+	//fmt.Printf("Length ptr + rt.n %d", ptr+rt.n)
+	//TODO check:
+	return rt.buf[ptr:]
 }
 
 // Generate the leaf by computing a WOTS key pair with the otsAddr and then
@@ -183,7 +184,7 @@ func (ctx *Context) genLeaf(pad scratchPad, ph precomputedHashes,
 // Computes the leaf node associated to a WOTS+ verification key.
 // Note that the WOTS+ verification key is destroyed.
 func (ctx *Context) lTree(pad scratchPad, wotsPk []byte, ph precomputedHashes, addr address) []byte {
-	var height uint32 // = 0 Golang init
+	var height uint32 // = 0 Golang init.
 	l := ctx.wotsLen  //uint32
 	for l > 1 {
 		addr.setTreeHeight(height)
@@ -218,13 +219,18 @@ func (ctx *Context) lTree(pad scratchPad, wotsPk []byte, ph precomputedHashes, a
 }
 
 // Return the authentication path for the given leaf.
-func (rt rootTree) AuthPath(leaf uint32) []byte {
-	ret := make([]byte, rt.n*rt.H)
+func (rt *rootTree) AuthPath(leaf uint32) []byte {
+	ret := make([]byte, rt.n*rt.height)
+	fmt.Printf("return lenght: %d \n", len(ret))
 	node := leaf
 	var i uint32
-	for i = 0; i < rt.H; i++ {
+	fmt.Printf("HeighASSSSSSSSSSSSSSSSSSSSSSt: %d \n", rt.height)
+	for i = 0; i < rt.height; i++ {
 		// node ^ 1 (bitwise xor) is the index offset of the sibling of node to pair with.
-		copy(ret[i*rt.n:], rt.node(i, node^1))
+		//fmt.Printf("i*rt.n = %d, rt.node lenght = %d \n", i*rt.n, len(rt.node(i, node^1)))
+		test := rt.node(i, node^1)
+		//fmt.Println("test done! ")
+		copy(ret[i*rt.n:], test)
 		// node / 2 is the index offset of the parent of node on its layer.
 		node = node / 2
 	}

@@ -110,8 +110,11 @@ func (sk *PrivateKey) SignChannelRoot(chRt []byte) (*RootSignature, error) {
 
 	// Compute the root tree to build the authentication path
 	rt := sk.ctx.genRootTree(pad, sk.ph)
+	fmt.Printf("HEIGHT: %d", rt.height)
+	fmt.Printf("Leaf: %d", uint32(seqNo))
 	authPath := rt.AuthPath(uint32(seqNo))
-
+	fmt.Printf("Length Authpath: %d", len(authPath))
+	fmt.Printf("Authpath: %d", authPath)
 	sig := RootSignature{
 		ctx:      sk.ctx,
 		seqNo:    seqNo,
