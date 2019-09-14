@@ -25,7 +25,7 @@ func NewContextFromOid(oid uint32) *Context {
 }
 
 // Returns the 2log of the Winternitz parameter
-func (params *Params) WotsLogW() uint8 {
+func (params *Params) wotsLogW() uint8 {
 	switch params.w {
 	case 4:
 		return 2
@@ -39,12 +39,12 @@ func (params *Params) WotsLogW() uint8 {
 }
 
 // Returns the number of  main WOTS+ chains
-func (params *Params) WotsLen1() uint32 {
-	return 8 * params.n / uint32(params.WotsLogW())
+func (params *Params) wotsLen1() uint32 {
+	return 8 * params.n / uint32(params.wotsLogW())
 }
 
 // Returns the number of WOTS+ checksum chains
-func (params *Params) WotsLen2() uint32 {
+func (params *Params) wotsLen2() uint32 {
 	switch params.w {
 	case 4:
 		return 2
@@ -58,11 +58,11 @@ func (params *Params) WotsLen2() uint32 {
 }
 
 // Returns the total number of WOTS+ chains
-func (params *Params) WotsLen() uint32 {
-	return params.WotsLen1() + params.WotsLen2()
+func (params *Params) wotsLen() uint32 {
+	return params.wotsLen1() + params.wotsLen2()
 }
 
 // Returns the size of a WOTS+ signature
-func (params *Params) WotsSignatureSize() uint32 {
-	return params.WotsLen() * params.n
+func (params *Params) wotsSignatureSize() uint32 {
+	return params.wotsLen() * params.n
 }

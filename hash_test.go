@@ -51,8 +51,8 @@ func TestPrf(t *testing.T) {
 }
 
 func testF(ctx *Context, expect string, t *testing.T) {
-	var in []byte = make([]byte, ctx.params.n)
-	var pubSeed []byte = make([]byte, ctx.params.n)
+	in := make([]byte, ctx.params.n)
+	pubSeed := make([]byte, ctx.params.n)
 	var addr [8]uint32
 	for i := 0; i < int(ctx.params.n); i++ {
 		pubSeed[i] = byte(2 * i)
@@ -63,7 +63,7 @@ func testF(ctx *Context, expect string, t *testing.T) {
 	}
 	val := hex.EncodeToString(ctx.f(in, pubSeed, address(addr)))
 	if val != expect {
-		t.Errorf("%s f is %s instead of %s", ctx.Name(), val, expect)
+		t.Errorf("f is %s instead of %s", val, expect)
 	}
 }
 
@@ -73,9 +73,9 @@ func TestF(t *testing.T) {
 }
 
 func testH(ctx *Context, expect string, t *testing.T) {
-	var left []byte = make([]byte, ctx.params.n)
-	var right []byte = make([]byte, ctx.params.n)
-	var pubSeed []byte = make([]byte, ctx.params.n)
+	left := make([]byte, ctx.params.n)
+	right := make([]byte, ctx.params.n)
+	pubSeed := make([]byte, ctx.params.n)
 	var addr [8]uint32
 	for i := 0; i < int(ctx.params.n); i++ {
 		pubSeed[i] = byte(2 * i)
@@ -87,7 +87,7 @@ func testH(ctx *Context, expect string, t *testing.T) {
 	}
 	val := hex.EncodeToString(ctx.h(left, right, pubSeed, address(addr)))
 	if val != expect {
-		t.Errorf("%s f is %s instead of %s", ctx.Name(), val, expect)
+		t.Errorf("f is %s instead of %s", val, expect)
 	}
 }
 

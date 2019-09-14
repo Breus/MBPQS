@@ -32,11 +32,11 @@ func newContext(p Params) (ctx *Context, err error) {
 	}
 	ctx.params = p
 	ctx.indexBytes = 4
-	ctx.wotsLogW = p.WotsLogW()
-	ctx.wotsLen1 = p.WotsLen1()
-	ctx.wotsLen2 = p.WotsLen2()
-	ctx.wotsLen = p.WotsLen()
-	ctx.wotsSigBytes = p.WotsSignatureSize()
+	ctx.wotsLogW = p.wotsLogW()
+	ctx.wotsLen1 = p.wotsLen1()
+	ctx.wotsLen2 = p.wotsLen2()
+	ctx.wotsLen = p.wotsLen()
+	ctx.wotsSigBytes = p.wotsSignatureSize()
 	ctx.sigBytes = (ctx.indexBytes + p.n + ctx.wotsSigBytes + p.rootH*p.n)
 	return ctx, nil
 }
