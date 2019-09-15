@@ -10,13 +10,34 @@ import (
 // Should start at 0 to compute AuthPath and is synced with leaf index.
 type SignatureSeqNo uint32
 
+// ChannelIdx is the index of the channel.
+type ChannelIdx uint32
+
 // RootSignature holds a signature on a channel by the rootTree.b
 type RootSignature struct {
 	ctx      *Context       // Defines the MBPQS instance which was used to create the Signature.
 	seqNo    SignatureSeqNo // sequence number of this signature so you know which index key to verify.
 	drv      []byte         // digest randomized value (r).
-	wotsSig  []byte         // the WOTS signature over the message.
+	wotsSig  []byte         // the WOTS signature over the channel root.
 	authPath []byte         // the authentication path for this signature to the rootTree root node.
+
+	chRoot  []byte     // Signed channelRoot
+	chIndex ChannelIdx // Index of the signed channel.
+}
+
+// ChannelSignature holds a signature on a message in a channel.
+type ChannelSignature struct {
+	chIndex  ChannelIdx
+	wotsSig  []byte // the WOTS signature over the channel message.
+	authPath []byte // autpath to the rootSignature.
+	drv      []byte // digest randomized value (r).
+}
+
+// Channel is a key channel within the MBPQS tree, are stacked chain trees with the same Tree address.
+type channel struct {
+	sigSeqNo SignatureSeqNo
+	chNo     ChannelIdx
+	root     []byte
 }
 
 // PrivateKey is a MBPQS private key */
@@ -25,6 +46,10 @@ type PrivateKey struct {
 	/* n-byte skSeed is used to pseudorandomly generate wots channelkeys seeds.
 	 * S in RFC8931, SK_1 and S in XMSS-T paper.
 	 */
+
+	// Channels in the privatekey
+	channels []channel
+
 	skSeed []byte
 	/* n-byte skPrf is used to randomize the message hash when signing.
 	 * SK_PRF in RFC8931, SK_2 in XMSS-T paper.
@@ -52,13 +77,13 @@ type PublicKey struct {
 }
 
 // InitParam returns a pointer to a Params struct with parameters initialized to given arguments.
-func InitParam(n, rtH, chanH, d uint32, w uint16) *Params {
+func InitParam(n, rtH, chanH uint32, w uint16, ge byte) *Params {
 	return &Params{
 		n:     n,
 		w:     w,
 		rootH: rtH,
 		chanH: chanH,
-		d:     d,
+		ge:    ge,
 	}
 }
 
@@ -189,4 +214,20 @@ func (sk *PrivateKey) GetSeqNo() (SignatureSeqNo, error) {
 	}
 	sk.seqNo++
 	return sk.seqNo - 1, nil
+}
+
+// SignChannelMsg signs the message 'msg' in the channel with
+func (sk *PrivateKey) SignChannelMsg(channelIdx uint32, msg []byte) error /* ChannelSignature */ {
+	if channelIdx < uint32(len(sk.channels)) { // Channel exists.
+
+	} else if channelIdx == uint32(len(sk.channels)) { // Channel is the next available channel.
+		sk.ctx.deriveChannel(channelIdx)
+
+		fmt.Printf("Creating channel %d \n", channelIdx)
+
+	} else { // Channel does not exist, and it not the next available channel.
+		return fmt.Errorf("channel %d does not exist, and is also not the next available channel", channelIdx)
+	}
+
+	return nil
 }

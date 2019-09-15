@@ -5,17 +5,17 @@ type Params struct {
 	n     uint32 // the security parameter, length of message digest and three nodes in bytes.
 	rootH uint32 // the height of the three (# levels -1).
 	w     uint16 // the Winternitz parameter, used in WOTS-T.
-	d     uint32 // the chain tree height growing exponent.
+	ge    byte   // the chain tree height growing exponent.
 	chanH uint32 // the inital chain tree height.
 
 }
 
 var paramSets = []Params{
-	Params{n: 32, rootH: 10, w: 16, d: 1, chanH: 1},
-	Params{n: 32, rootH: 16, w: 16, d: 1, chanH: 1},
-	Params{n: 32, rootH: 20, w: 16, d: 1, chanH: 1},
-	Params{n: 64, rootH: 10, w: 16, d: 1, chanH: 1},
-	Params{n: 64, rootH: 16, w: 16, d: 1, chanH: 1},
+	Params{n: 32, rootH: 10, w: 16, ge: 1, chanH: 1},
+	Params{n: 32, rootH: 16, w: 16, ge: 1, chanH: 1},
+	Params{n: 32, rootH: 20, w: 16, ge: 1, chanH: 1},
+	Params{n: 64, rootH: 10, w: 16, ge: 1, chanH: 1},
+	Params{n: 64, rootH: 16, w: 16, ge: 1, chanH: 1},
 }
 
 // NewContextFromOid returns a new context for the given Root tree.

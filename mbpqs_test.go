@@ -5,7 +5,7 @@ import (
 )
 
 func TestSignAndVerify(t *testing.T) {
-	params := &Params{n: 32, w: 16, d: 1, rootH: 2, chanH: 3}
+	params := &Params{n: 32, w: 16, ge: 1, rootH: 2, chanH: 3}
 	sk, pk, err := GenerateKeyPair(params)
 	if err != nil {
 		t.Fatalf("key generation went wrong %s", err)
@@ -35,7 +35,7 @@ func TestSignAndVerify(t *testing.T) {
 	}
 
 	// Check if we can't verify a incorrect signature.
-	params = &Params{n: 64, w: 4, d: 1, rootH: 12, chanH: 3}
+	params = &Params{n: 64, w: 4, ge: 1, rootH: 12, chanH: 3}
 	sk, pk, err = GenerateKeyPair(params)
 	if err != nil {
 		t.Fatalf("key generation went wrong %s", err)
@@ -48,5 +48,16 @@ func TestSignAndVerify(t *testing.T) {
 	accept, _ := pk.VerifyChannelRoot(sign, msg2)
 	if accept {
 		t.Fatal("Can verify the signature over a different message!")
+	}
+}
+
+func TestChannelSigning(t *testing.T) {
+	sk, _, err := GenerateKeyPair(&Params{n: 32, w: 4, ge: 1, rootH: 4, chanH: 10})
+	if err != nil {
+		t.Fatalf("keygeneration gave error %s", err)
+	}
+	err = sk.SignChannelMsg(0, []byte("Hello!"))
+	if err != nil {
+		t.Fatalf("signChannelMsg failed with error %s", err)
 	}
 }
