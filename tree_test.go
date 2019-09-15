@@ -82,10 +82,6 @@ func testGenRootTree(ctx *Context, expect string, t *testing.T) {
 		skSeed[i] = byte(i)
 		pubSeed[i] = byte(2 * i)
 	}
-	// sta := SubTreeAddress{
-	// 	Layer: 0,
-	// 	Tree:  2147483649000000000,
-	// }
 	rt := ctx.genRootTree(ctx.newScratchPad(), ctx.precomputeHashes(pubSeed, skSeed))
 	val := hex.EncodeToString(rt.node(ctx.params.rootH, 0))
 	if val != expect {
@@ -94,14 +90,14 @@ func testGenRootTree(ctx *Context, expect string, t *testing.T) {
 }
 
 func TestRootTree10(t *testing.T) {
-	testGenRootTree(NewContextFromOid(0), "bfe8b34813f7d878ded6a4433431204412351162db29d33bccd905d61c1411e4", t)
+	testGenRootTree(NewContextFromOid(0), "416bea4b44c0e5a52dc8bd65df2929579de7123cd01926972e58f1b22b1c63d7", t)
 }
 
 func TestRootTree16(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping genSubTree of 2^16")
 	}
-	testGenRootTree(NewContextFromOid(1), "fd41b44b25d0cf78b0243ffc8c783530f8ad9dd3ec3d1fd9d997245fb2fb7726", t)
+	testGenRootTree(NewContextFromOid(1), "f903f838e63e4d2851cd0bb7781f964f302dc88ee30a8944a288740420df23f2", t)
 }
 
 func TestRootTree(t *testing.T) {

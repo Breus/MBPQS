@@ -30,11 +30,11 @@ type rootTree struct {
 type scratchPad struct {
 	n   uint32
 	buf []byte
-	// The scratchPad has a hashScratchPad to avoid memory allocations in hash computations.
+	// The scratchPad has a hashScratchPad to avoid memory allocations during hash computations.
 	hashPad hashScratchPad
 }
 
-// Allocates memory for a merkle tree of n-byte string of height H.
+// Allocates memory for a root tree of n-byte string with heigth-1 height.
 func newRootTree(height, n uint32) rootTree {
 	return rootTreeFromBuf(make([]byte, ((1<<height)-1)*n), height, n)
 }
@@ -67,7 +67,7 @@ func (ctx *Context) genRootTreeInto(pad scratchPad, ph precomputedHashes, rt roo
 	// Init address for OTS, LTree nodes, and Tree nodes.
 	var otsAddr, lTreeAddr, nodeAddr address
 
-	// Set subTreeAddress for the root tree.
+	// Set subTreeAddress for the
 	rta := SubTreeAddress{
 		Layer: 0,
 		Tree:  0,

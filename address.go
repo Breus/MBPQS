@@ -13,10 +13,7 @@ const (
 // Address type for all address types 32 byte.
 type address [8]uint32
 
-/* Address field setters for all Address types.
- * First for OTS address, then LTREE address, then TREE address.
- */
-
+// Address field setters for all Address types.
 func (addr *address) setLayer(layer uint32) {
 	addr[0] = layer
 }
@@ -66,13 +63,12 @@ func (addr *address) setTreeIndex(treeIndex uint32) {
 
 // Write an address into a given n-byte buffer.
 func (addr *address) writeInto(buf []byte) {
-
 	for i := 0; i < 8; i++ {
 		binary.BigEndian.PutUint32(buf[i*4:(i+1)*4], addr[i])
 	}
 }
 
-// Converts a roottreeaddress to an address and write the Layer and Tree field.
+// Converts a SubTreeAddress to an address and write the Layer and Tree field.
 func (sta *SubTreeAddress) address() (addr address) {
 	addr.setLayer(sta.Layer)
 	addr.setTree(sta.Tree)
