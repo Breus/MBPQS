@@ -60,13 +60,11 @@ func (ctx *Context) genRootTree(pad scratchPad, ph precomputedHashes) rootTree {
 	return rt
 }
 
-//TODO Generate a root tree into the allocated memory rt.
+// Generate a root tree into the allocated memory rt.
 func (ctx *Context) genRootTreeInto(pad scratchPad, ph precomputedHashes, rt rootTree) {
 	fmt.Println("Generating Root Tree..")
-
 	// Init address for OTS, LTree nodes, and Tree nodes.
 	var otsAddr, lTreeAddr, nodeAddr address
-
 	// Set subTreeAddress for the
 	rta := SubTreeAddress{
 		Layer: 0,
@@ -82,7 +80,6 @@ func (ctx *Context) genRootTreeInto(pad scratchPad, ph precomputedHashes, rt roo
 
 	// First, compute the leafs of the tree.
 	var idx uint32
-
 	if ctx.threads == 1 {
 		for idx = 0; idx < (1 << ctx.params.rootH); idx++ {
 			lTreeAddr.setLTree(idx)
@@ -100,7 +97,6 @@ func (ctx *Context) genRootTreeInto(pad scratchPad, ph precomputedHashes, rt roo
 			threads = runtime.NumCPU()
 		}
 		wg.Add(threads)
-
 		for i := 0; i < threads; i++ {
 			go func(lTreeAddr, otsAddr address) {
 				pad := ctx.newScratchPad()
@@ -132,7 +128,6 @@ func (ctx *Context) genRootTreeInto(pad scratchPad, ph precomputedHashes, rt roo
 		}
 		wg.Wait()
 	}
-
 	// Next, compute the internal nodes and the root node.
 	var height uint32
 	// Looping through all the layers of the rootTree.
@@ -222,7 +217,6 @@ func (rt *rootTree) AuthPath(leaf uint32) []byte {
  * The scratchpad includes a buffer with memory allocated for various computations.
  * Furthermore, the buffer includes a hashScratchPad, which is used as scratchpad during hash operations.
  */
-
 func (ctx *Context) newScratchPad() scratchPad {
 	n := ctx.params.n
 	pad := scratchPad{
@@ -257,10 +251,7 @@ func (pad scratchPad) wotsBuf() []byte {
 	return pad.buf[10*pad.n+64:]
 }
 
-/* ONLY FOR TESTING PURPOSES!!!
- *
- */
-
+// This method exists only for testing purposes!
 func (ctx *Context) getWotsSeed(pad scratchPad, ph precomputedHashes,
 	addr address) []byte {
 	addr.setChain(0)

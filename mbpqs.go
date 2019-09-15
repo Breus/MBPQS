@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-// SignatureSeqNo is the sequence number of signatures.
+// SignatureSeqNo is the sequence number of signatures and wotsKeys.
 // Should start at 0 to compute AuthPath and is synced with leaf index.
 type SignatureSeqNo uint32
 
