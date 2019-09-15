@@ -103,6 +103,7 @@ func (sk *PrivateKey) SignChannelRoot(chRt []byte) (*RootSignature, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	// Set otsAddr to calculate wotsSign over the message.
 	var otsAddr address // All fields should be 0, that's why init is enough.
 	// TODO: check address for OTS
@@ -110,11 +111,7 @@ func (sk *PrivateKey) SignChannelRoot(chRt []byte) (*RootSignature, error) {
 
 	// Compute the root tree to build the authentication path
 	rt := sk.ctx.genRootTree(pad, sk.ph)
-	fmt.Printf("HEIGHT: %d", rt.height)
-	fmt.Printf("Leaf: %d", uint32(seqNo))
 	authPath := rt.AuthPath(uint32(seqNo))
-	fmt.Printf("Length Authpath: %d", len(authPath))
-	fmt.Printf("Authpath: %d", authPath)
 	sig := RootSignature{
 		ctx:      sk.ctx,
 		seqNo:    seqNo,
@@ -122,7 +119,6 @@ func (sk *PrivateKey) SignChannelRoot(chRt []byte) (*RootSignature, error) {
 		wotsSig:  sk.ctx.wotsSign(pad, hashChRt, sk.pubSeed, sk.skSeed, otsAddr),
 		authPath: authPath,
 	}
-
 	return &sig, nil
 }
 
@@ -154,18 +150,16 @@ func (pk *PublicKey) VerifyChannelRoot(rtSig *RootSignature, chRt []byte) (bool,
 	var height uint32
 	nodeAddr.setType(treeAddrType)
 
-	// In this slices, we will compute the offsets of
-	offset := uint32(rtSig.seqNo)
-
+	index := uint32(rtSig.seqNo)
 	for height = 1; height <= pk.ctx.params.rootH; height++ {
 		nodeAddr.setTreeHeight(height - 1)
-		nodeAddr.setTreeIndex(offset >> 1)
+		nodeAddr.setTreeIndex(index >> 1)
 
 		sibling := rtSig.authPath[(height-1)*pk.ctx.params.n : height*pk.ctx.params.n]
 
 		var left, right []byte
 
-		if offset&1 == 0 {
+		if index&1 == 0 {
 			left = curHash
 			right = sibling
 		} else {
@@ -174,7 +168,7 @@ func (pk *PublicKey) VerifyChannelRoot(rtSig *RootSignature, chRt []byte) (bool,
 		}
 
 		pk.ctx.hInto(pad, left, right, pk.ph, nodeAddr, curHash)
-		offset >>= 1
+		index >>= 1
 	}
 	hashChRt = curHash
 

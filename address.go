@@ -73,7 +73,7 @@ func (addr *address) writeInto(buf []byte) {
 }
 
 // Converts a roottreeaddress to an address and write the Layer and Tree field.
-func (sta *RootTreeAddress) address() (addr address) {
+func (sta *SubTreeAddress) address() (addr address) {
 	addr.setLayer(sta.Layer)
 	addr.setTree(sta.Tree)
 	return

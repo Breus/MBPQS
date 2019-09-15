@@ -1,41 +1,52 @@
 package mbpqs
 
 import (
-	"fmt"
 	"testing"
 )
 
-// func TestSigning(t *testing.T) {
-// 	msg := []byte("Hello there!")
-// 	params := &Params{n: 32, w: 16, d: 1, rootH: 5, chanH: 3}
-// 	sk, _, err := GenerateKeyPair(params)
-// 	if err != nil {
-// 		t.Fatalf("key generation went wrong %s", err)
-// 	}
-
-// 	sign, err := sk.SignChannelRoot(msg)
-// 	fmt.Printf("WotsSignature is length: %d", len(sign.wotsSig))
-// 	if err != nil {
-// 		t.Fatalf("signing crashed with error %s", err)
-// 	}
-// }
-
-func TestSignThenVerify(t *testing.T) {
-	msg := []byte("Hello there!")
-	params := &Params{n: 32, w: 16, d: 1, rootH: 6, chanH: 3}
+func TestSignAndVerify(t *testing.T) {
+	params := &Params{n: 32, w: 16, d: 1, rootH: 2, chanH: 3}
 	sk, pk, err := GenerateKeyPair(params)
 	if err != nil {
 		t.Fatalf("key generation went wrong %s", err)
 	}
 
+	// Check if we can sign and verify 2^rootH times.
+	for i := 0; i < 1<<params.rootH-1; i++ {
+		msg := []byte("Hello message" + string(i))
+		sign, err := sk.SignChannelRoot(msg)
+		if err != nil {
+			t.Fatalf("signing crashed with error %s", err)
+		}
+		accept, err := pk.VerifyChannelRoot(sign, msg)
+		if err != nil {
+			t.Fatalf("verification crashed with error %s", err)
+		}
+		if !accept {
+			t.Fatalf("non-correct signature %d", i)
+		}
+	}
+
+	// Check if we can't sign more than 2^rootH times.
+	msg := []byte("This is one message too much!")
 	sign, err := sk.SignChannelRoot(msg)
-	if err != nil {
-		t.Fatalf("signing crashed with error %s", err)
+	if err == nil || sign != nil {
+		t.Fatalf("signing too many messages is allowed!")
 	}
-	fmt.Printf("Print sign lenght: %d", len(sign.authPath))
-	accept, err := pk.VerifyChannelRoot(sign, msg)
+
+	// Check if we can't verify a incorrect signature.
+	params = &Params{n: 64, w: 4, d: 1, rootH: 12, chanH: 3}
+	sk, pk, err = GenerateKeyPair(params)
 	if err != nil {
-		t.Fatalf("verification gave errror %s", err)
+		t.Fatalf("key generation went wrong %s", err)
 	}
-	fmt.Println(accept)
+
+	msg1 := []byte("Yes")
+	msg2 := []byte("Yes.")
+
+	sign, _ = sk.SignChannelRoot(msg1)
+	accept, _ := pk.VerifyChannelRoot(sign, msg2)
+	if accept {
+		t.Fatal("Can verify the signature over a different message!")
+	}
 }
