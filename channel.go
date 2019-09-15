@@ -9,8 +9,8 @@ type chainTree struct {
 
 // deriveChannel creates a channel for chanelIdx.
 func (ctx *Context) deriveChannel(channelIdx uint32) channel {
-	// Create chainTree to retrieve the root from.
-	//ct := ctx.genChainTree(channelIdx, 0)
+	//  chainTree to retrieve the root from.
+	ct := ctx.genChainTree(channelIdx, 0)
 
 	ret := channel{sigSeqNo: 0, chNo: ChannelIdx(channelIdx), root: []byte("hi")}
 
