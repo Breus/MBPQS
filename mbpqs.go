@@ -221,7 +221,7 @@ func (sk *PrivateKey) SignChannelMsg(channelIdx uint32, msg []byte) error /* Cha
 	if channelIdx < uint32(len(sk.channels)) { // Channel exists.
 
 	} else if channelIdx == uint32(len(sk.channels)) { // Channel is the next available channel.
-		sk.ctx.deriveChannel(channelIdx)
+		sk.deriveChannel(channelIdx)
 
 		fmt.Printf("Creating channel %d \n", channelIdx)
 

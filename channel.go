@@ -1,32 +1,91 @@
 package mbpqs
 
-// chainTree is a MBPQS chainTree represented as an array.
+import "fmt"
+
+/* Represents a height t chainTree of n-byte string nodes N[i,j] as:
+ 					N[t-1,0]
+					/	 |
+			  N(t-2,1)  N(t-2,1)
+				/ |
+			   (...)
+			  /	  |
+	      N(1,0) N(1,1)
+		  /	  |
+	 N(0,0)	 N(0,1)
+
+
+	The buf array is structered as follows:
+	[(0,0),(0,1),(1,0)(1,1),(...),(t-2,0)(t-2,1),(t-1,0)]
+*/
+
 type chainTree struct {
 	height uint32
 	n      uint32
 	buf    []byte
 }
 
-// deriveChannel creates a channel for chanelIdx.
-func (ctx *Context) deriveChannel(channelIdx uint32) channel {
+// DeriveChannel creates a channel for chanelIdx.
+func (sk *PrivateKey) deriveChannel(chTreeIdx uint32) channel {
+	// pad := sk.ctx.newScratchPad()
 	//  chainTree to retrieve the root from.
-	ct := ctx.genChainTree(channelIdx, 0)
+	// ct := sk.genChainTree(pad, chTreeIdx, 0)
 
-	ret := channel{sigSeqNo: 0, chNo: ChannelIdx(channelIdx), root: []byte("hi")}
+	ret := channel{sigSeqNo: 0, chNo: ChannelIdx(chTreeIdx), root: []byte("hi")}
 
 	return ret
 }
 
-func (ctx *Context) genChainTree(channelIdx uint32, chainLvl uint32) chainTree {
-	height := channelIdx * uint32(ctx.params.ge) * ctx.params.chanH
-	n := ctx.params.n
-	ct := newChainTree(height, n)
+// Allocates a new ChainTree and returns a generated chaintree into the memory.
+func (sk *PrivateKey) genChainTree(pad scratchPad, chTreeIdx, chLayer uint32) chainTree {
+	ct := newChainTree(chTreeIdx*uint32(sk.ctx.params.ge)*sk.ctx.params.chanH, sk.ctx.params.n)
+	sk.genChainTreeInto(pad, chTreeIdx, chLayer, ct)
 	return ct
 }
 
-// Allocates memory for a chain tree of n-byte strings with height-1
+// Generates a chain tree into ct.
+func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chTreeIdx, chLayer uint32, ct chainTree) {
+	fmt.Println("Generating chainTree...")
+	// Init addresses for OTS, LTree nodes, and Tree nodes.
+	var otsAddr, lTreeAddr, nodeAddr address
+	sta := SubTreeAddress{
+		Layer: chLayer,
+		Tree:  uint64(chTreeIdx),
+	}
+
+	addr := sta.address()
+	otsAddr.setSubTreeFrom(addr)
+	otsAddr.setType(otsAddrType)
+	lTreeAddr.setSubTreeFrom(addr)
+	lTreeAddr.setType(lTreeAddrType)
+	nodeAddr.setSubTreeFrom(addr)
+	nodeAddr.setType(treeAddrType)
+
+	// First, compute the leafs of the chain tree.
+	var idx uint32
+	if sk.ctx.threads == 1 {
+		// No. leafs == height of the chain tree.
+		for idx = 0; idx < ct.height; idx++ {
+			lTreeAddr.setLTree(idx)
+			otsAddr.setOTS(idx)
+			//copy(ct.node(,1))
+		}
+	}
+}
+
+// Returns a slice of the node at given height and index idx in the chain tree.
+func (ct *chainTree) node(height, idx uint32) []byte {
+	ptr := ct.n * (2*height + idx)
+	return ct.buf[ptr : ptr+ct.n]
+}
+
+// Gets the root node of the chain tree.
+func (ct *chainTree) getRootNode() []byte {
+	return ct.node(ct.height-1, 0)
+}
+
+// Allocates memory for a chain tree of n-byte strings with height-1.
 func newChainTree(height, n uint32) chainTree {
-	return chainTreeFromBuf(make([]byte, (2*height*n)), height, n)
+	return chainTreeFromBuf(make([]byte, (2*height-1)*2), height, n)
 }
 
 // Makes a chain tree from a buffer.

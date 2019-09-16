@@ -66,11 +66,11 @@ func (ctx *Context) genRootTreeInto(pad scratchPad, ph precomputedHashes, rt roo
 	// Init address for OTS, LTree nodes, and Tree nodes.
 	var otsAddr, lTreeAddr, nodeAddr address
 	// Set subTreeAddress for the
-	rta := SubTreeAddress{
+	sta := SubTreeAddress{
 		Layer: 0,
 		Tree:  0,
 	}
-	addr := rta.address()
+	addr := sta.address()
 	otsAddr.setSubTreeFrom(addr)
 	otsAddr.setType(otsAddrType)
 	lTreeAddr.setSubTreeFrom(addr)
@@ -78,7 +78,7 @@ func (ctx *Context) genRootTreeInto(pad scratchPad, ph precomputedHashes, rt roo
 	nodeAddr.setSubTreeFrom(addr)
 	nodeAddr.setType(treeAddrType)
 
-	// First, compute the leafs of the tree.
+	// First, compute the leafs of the root tree.
 	var idx uint32
 	if ctx.threads == 1 {
 		for idx = 0; idx < (1 << ctx.params.rootH); idx++ {
@@ -145,7 +145,7 @@ func (ctx *Context) genRootTreeInto(pad scratchPad, ph precomputedHashes, rt roo
 	}
 }
 
-// Returns a slice of the node at given height and index idx.
+// Returns a slice of the node at given height and index idx of the root tree.
 func (rt *rootTree) node(height, idx uint32) []byte {
 	ptr := rt.n * ((1 << rt.height) - (1 << (rt.height - height)) + idx)
 	return rt.buf[ptr : ptr+rt.n]
