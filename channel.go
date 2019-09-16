@@ -1,6 +1,10 @@
 package mbpqs
 
-import "fmt"
+import (
+	"fmt"
+	"runtime"
+	"sync"
+)
 
 /* Represents a height t chainTree of n-byte string nodes N[i,j] as:
  					N[t-1,0]
@@ -26,11 +30,11 @@ type chainTree struct {
 
 // DeriveChannel creates a channel for chanelIdx.
 func (sk *PrivateKey) deriveChannel(chTreeIdx uint32) channel {
-	// pad := sk.ctx.newScratchPad()
-	//  chainTree to retrieve the root from.
-	// ct := sk.genChainTree(pad, chTreeIdx, 0)
-
-	ret := channel{sigSeqNo: 0, chNo: ChannelIdx(chTreeIdx), root: []byte("hi")}
+	pad := sk.ctx.newScratchPad()
+	// chainTree to retrieve the root from.
+	ct := sk.genChainTree(pad, chTreeIdx, 0)
+	ctRoot := ct.getRootNode()
+	ret := channel{sigSeqNo: 0, chNo: ChannelIdx(chTreeIdx), root: ctRoot}
 
 	return ret
 }
@@ -67,9 +71,70 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chTreeIdx, chLayer uint32
 		for idx = 0; idx < ct.height; idx++ {
 			lTreeAddr.setLTree(idx)
 			otsAddr.setOTS(idx)
-			//copy(ct.node(,1))
+
+			copy(ct.leaf(idx), sk.ctx.genLeaf(pad, sk.ph, lTreeAddr, otsAddr))
 		}
+	} else {
+		// The code in this branch does exactly the same as in the
+		// branch above, but in parallel.
+		wg := &sync.WaitGroup{}
+		mux := &sync.Mutex{}
+		var perBatch uint32 = 32
+		threads := sk.ctx.threads
+		if threads == 0 {
+			threads = runtime.NumCPU()
+		}
+		wg.Add(threads)
+		for i := 0; i < threads; i++ {
+			go func(lTreeAddr, otsAddr address) {
+				pad := sk.ctx.newScratchPad()
+				var ourIdx uint32
+				for {
+					mux.Lock()
+					ourIdx = idx
+					idx += perBatch
+					mux.Unlock()
+					if ourIdx >= ct.height {
+						break
+					}
+					ourEnd := ourIdx + perBatch
+					if ourEnd > ct.height {
+						ourEnd = ct.height
+					}
+					for ; ourIdx < ourEnd; ourIdx++ {
+						lTreeAddr.setLTree(ourIdx)
+						otsAddr.setOTS(ourIdx)
+						copy(ct.leaf(ourIdx), sk.ctx.genLeaf(
+							pad,
+							sk.ph,
+							lTreeAddr,
+							otsAddr))
+					}
+				}
+				wg.Done()
+			}(lTreeAddr, otsAddr)
+		}
+		wg.Wait()
 	}
+
+	// Next, compute the internal nodes and the root node.
+	var height uint32
+	// Looping through all the layers of the chainTree.
+	for height = 1; height < ct.height; height++ {
+		// Set tree height of the computed node.
+		nodeAddr.setTreeHeight(height - 1)
+		// Internal nodes and root node have Treeindex 0.
+		nodeAddr.setTreeIndex(0)
+		sk.ctx.hInto(pad, ct.node(height-1, 0), ct.node(height-1, 1), sk.ph, nodeAddr, ct.node(height, 0))
+	}
+}
+
+// Returns a slice of the leaf at given leaf index.
+func (ct *chainTree) leaf(idx uint32) []byte {
+	if idx == 0 {
+		return ct.node(0, 0)
+	}
+	return ct.node((idx - 1), 1)
 }
 
 // Returns a slice of the node at given height and index idx in the chain tree.
