@@ -30,18 +30,12 @@ type chainTree struct {
 
 // DeriveChannel creates a channel for chanelIdx.
 func (sk *PrivateKey) deriveChannel(chTreeIdx uint32) channel {
-	pad := sk.ctx.newScratchPad()
-	// chainTree to retrieve the root from.
-	ct := sk.genChainTree(pad, chTreeIdx, 0)
-	ctRoot := ct.getRootNode()
-	ret := channel{sigSeqNo: 0, chNo: ChannelIdx(chTreeIdx), root: ctRoot}
-
-	return ret
+	return channel{channelIdx: chTreeIdx, chainLevels: 0, seqNo: 0,}
 }
 
 // Allocates a new ChainTree and returns a generated chaintree into the memory.
 func (sk *PrivateKey) genChainTree(pad scratchPad, chTreeIdx, chLayer uint32) chainTree {
-	ct := newChainTree(chTreeIdx*uint32(sk.ctx.params.ge)*sk.ctx.params.chanH, sk.ctx.params.n)
+	ct := newChainTree(sk.GetChainTreeHeight(chLayer), sk.ctx.params.n)
 	sk.genChainTreeInto(pad, chTreeIdx, chLayer, ct)
 	return ct
 }
@@ -160,4 +154,21 @@ func chainTreeFromBuf(buf []byte, height, n uint32) chainTree {
 		n:      n,
 		buf:    buf,
 	}
+}
+
+// Returns the height of a chain tree at level chainLevel.
+func (sk *PrivateKey) GetChainTreeHeight(chainLevel) uint32{
+	return sk.ctx.params.chanH + sk.ctx.params.ge * chainLevel
+}
+
+// TODO: CHECKING POINTERS/REFERENCES
+// GetSeqNo retrieves the current index of the first signing key in the channel.
+func (sk *PrivateKey) GetChannelSeqNo(channelIdx uint32) (SignatureSeqNo, error) {
+	ch := sk.channels[channelIdx]
+	ch.mux.Lock()
+	// Unlock the lock when the function is finished.
+	defer ch.mux.Unlock()
+
+	// For now, only one chain tree is possible
+	if uint64(ch.seqNo) == 
 }

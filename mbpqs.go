@@ -10,9 +10,6 @@ import (
 // Should start at 0 to compute AuthPath and is synced with leaf index.
 type SignatureSeqNo uint32
 
-// ChannelIdx is the index of the channel.
-type ChannelIdx uint32
-
 // RootSignature holds a signature on a channel by the rootTree.b
 type RootSignature struct {
 	ctx      *Context       // Defines the MBPQS instance which was used to create the Signature.
@@ -21,13 +18,14 @@ type RootSignature struct {
 	wotsSig  []byte         // the WOTS signature over the channel root.
 	authPath []byte         // the authentication path for this signature to the rootTree root node.
 
-	chRoot  []byte     // Signed channelRoot
-	chIndex ChannelIdx // Index of the signed channel.
+	chRoot  []byte // Signed channelRoot
+	chIndex uint32 // Index of the signed channel.
 }
 
 // ChannelSignature holds a signature on a message in a channel.
 type ChannelSignature struct {
-	chIndex  ChannelIdx
+	chIndex  uint32
+	seqNo    SignatureSeqNo
 	wotsSig  []byte // the WOTS signature over the channel message.
 	authPath []byte // autpath to the rootSignature.
 	drv      []byte // digest randomized value (r).
@@ -35,9 +33,10 @@ type ChannelSignature struct {
 
 // Channel is a key channel within the MBPQS tree, are stacked chain trees with the same Tree address.
 type channel struct {
-	sigSeqNo SignatureSeqNo
-	chNo     ChannelIdx
-	root     []byte
+	channelIdx uint32
+	chainLayer uint32
+	seqNo      SignatureSeqNo
+	mux        sync.Mutex // Used when mutual exclusion for the channel is required.
 }
 
 // PrivateKey is a MBPQS private key */
@@ -48,7 +47,7 @@ type PrivateKey struct {
 	 */
 
 	// Channels in the privatekey
-	channels []channel
+	channels []*channel
 
 	skSeed []byte
 	/* n-byte skPrf is used to randomize the message hash when signing.
@@ -62,7 +61,7 @@ type PrivateKey struct {
 	root    []byte            // n-byte root node of the root tree.
 	ctx     *Context          // Context containing the MBPQS parameters.
 	ph      precomputedHashes // Precomputed hashes from the pubSeed and skSeed.
-	mux     sync.Mutex        // Used when mutual exclusion for the PrivateKey
+	mux     sync.Mutex        // Used when mutual exclusion for the PrivateKey is required.
 }
 
 // PublicKey is a MBPQS public key.
@@ -219,11 +218,12 @@ func (sk *PrivateKey) GetSeqNo() (SignatureSeqNo, error) {
 // SignChannelMsg signs the message 'msg' in the channel with
 func (sk *PrivateKey) SignChannelMsg(channelIdx uint32, msg []byte) error /* ChannelSignature */ {
 	if channelIdx < uint32(len(sk.channels)) { // Channel exists.
+		ch := sk.channels[channelIdx]
+		ch.getChainLayer()
+		ch.GetSeqNo()
 
 	} else if channelIdx == uint32(len(sk.channels)) { // Channel is the next available channel.
 		sk.deriveChannel(channelIdx)
-
-		fmt.Printf("Creating channel %d \n", channelIdx)
 
 	} else { // Channel does not exist, and it not the next available channel.
 		return fmt.Errorf("channel %d does not exist, and is also not the next available channel", channelIdx)
