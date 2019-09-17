@@ -18,8 +18,15 @@ type RootSignature struct {
 	wotsSig  []byte         // the WOTS signature over the channel root.
 	authPath []byte         // the authentication path for this signature to the rootTree root node.
 
-	chRoot  []byte // Signed channelRoot
-	chIndex uint32 // Index of the signed channel.
+	chainSig []byte //
+
+}
+
+// ChainSignature is a signature over a chain tree root.
+type ChainSignature struct {
+	root  []byte
+	index uint32
+	layer uint32
 }
 
 // ChannelSignature holds a signature on a message in a channel.
@@ -32,11 +39,11 @@ type ChannelSignature struct {
 }
 
 // Channel is a key channel within the MBPQS tree, are stacked chain trees with the same Tree address.
-type channel struct {
-	channelIdx uint32
-	chainLayer uint32
-	seqNo      SignatureSeqNo
-	mux        sync.Mutex // Used when mutual exclusion for the channel is required.
+type Channel struct {
+	idx    uint32         // The chIdx is the offset of the channel in the MBPQS tree.
+	layers uint32         // The amount of chain layers in the channel.
+	seqNo  SignatureSeqNo // The first signatureseqno available for signing in this channel.
+	mux    sync.Mutex     // Used when mutual exclusion for the channel is required.
 }
 
 // PrivateKey is a MBPQS private key */
@@ -47,7 +54,7 @@ type PrivateKey struct {
 	 */
 
 	// Channels in the privatekey
-	channels []*channel
+	Channels []Channel
 
 	skSeed []byte
 	/* n-byte skPrf is used to randomize the message hash when signing.
@@ -76,7 +83,7 @@ type PublicKey struct {
 }
 
 // InitParam returns a pointer to a Params struct with parameters initialized to given arguments.
-func InitParam(n, rtH, chanH uint32, w uint16, ge byte) *Params {
+func InitParam(n, rtH, chanH, ge uint32, w uint16) *Params {
 	return &Params{
 		n:     n,
 		w:     w,
@@ -216,17 +223,27 @@ func (sk *PrivateKey) GetSeqNo() (SignatureSeqNo, error) {
 }
 
 // SignChannelMsg signs the message 'msg' in the channel with
-func (sk *PrivateKey) SignChannelMsg(channelIdx uint32, msg []byte) error /* ChannelSignature */ {
-	if channelIdx < uint32(len(sk.channels)) { // Channel exists.
-		ch := sk.channels[channelIdx]
-		ch.getChainLayer()
-		ch.GetSeqNo()
+func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) error /* ChannelSignature */ {
+	if chIdx < uint32(len(sk.Channels)) { // Channel exists.
+		//ch := sk.Channels[chIdx]
 
-	} else if channelIdx == uint32(len(sk.channels)) { // Channel is the next available channel.
-		sk.deriveChannel(channelIdx)
+	} else if chIdx == uint32(len(sk.Channels)) { // Channel is the next available channel.
+		// Scratchpad to avoid computation allocations.
+		pad := sk.ctx.newScratchPad()
+		// Create a new channel, because it does not exist yet.
+		ch := sk.deriveChannel(chIdx)
+		// Appending the created channel to the channellist in the PK.
+		sk.Channels = append(sk.Channels, ch)
+		// Create the first chainTree.
+		ct := sk.genChainTree(chIdx, pad)
+		// Get the root, and sign it.
+
+		// Sign the root.
+
+		// Construct the
 
 	} else { // Channel does not exist, and it not the next available channel.
-		return fmt.Errorf("channel %d does not exist, and is also not the next available channel", channelIdx)
+		return fmt.Errorf("channel %d does not exist, and is also not the next available channel", chIdx)
 	}
 
 	return nil
