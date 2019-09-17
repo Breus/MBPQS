@@ -17,25 +17,16 @@ type RootSignature struct {
 	drv      []byte         // digest randomized value (r).
 	wotsSig  []byte         // the WOTS signature over the channel root.
 	authPath []byte         // the authentication path for this signature to the rootTree root node.
-
-	chainSig []byte //
-
-}
-
-// ChainSignature is a signature over a chain tree root.
-type ChainSignature struct {
-	root  []byte
-	index uint32
-	layer uint32
 }
 
 // ChannelSignature holds a signature on a message in a channel.
 type ChannelSignature struct {
-	chIndex  uint32
-	seqNo    SignatureSeqNo
-	wotsSig  []byte // the WOTS signature over the channel message.
-	authPath []byte // autpath to the rootSignature.
-	drv      []byte // digest randomized value (r).
+	ctx      *Context       // defines the mbpqs instance which was used to create the signature.
+	seqNo    SignatureSeqNo // sequence number of this signature in the channel.
+	drv      []byte         // digest randomized value (r).
+	wotsSig  []byte         // the WOTS signature over the channel message.
+	authPath []byte         // autpath to the rootSignature.
+	chIdx    uint32         // in which channel the signature
 }
 
 // Channel is a key channel within the MBPQS tree, are stacked chain trees with the same Tree address.
@@ -43,6 +34,7 @@ type Channel struct {
 	idx    uint32         // The chIdx is the offset of the channel in the MBPQS tree.
 	layers uint32         // The amount of chain layers in the channel.
 	seqNo  SignatureSeqNo // The first signatureseqno available for signing in this channel.
+	keyQty uint32         // Amount of available keys before a new chainTree root should be created.
 	mux    sync.Mutex     // Used when mutual exclusion for the channel is required.
 }
 
@@ -223,19 +215,50 @@ func (sk *PrivateKey) GetSeqNo() (SignatureSeqNo, error) {
 }
 
 // SignChannelMsg signs the message 'msg' in the channel with
-func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) error {
-	if chIdx < uint32(len(sk.Channels)) { // Channel exists.
-		//ch := sk.Channels[chIdx]
+func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*ChannelSignature, error) {
+	// Create scratchpad to avoid memory allocations.
+	pad := sk.ctx.newScratchPad()
+	// Check if the channel exists.
+	if chIdx >= uint32(len(sk.Channels)) {
+		return nil, fmt.Errorf("channel does not exist, please create it first")
+	}
+	// Retrieve and update channelSeqNo
+	seqNo := sk.ChannelSeqNo(chIdx)
 
-	} else if chIdx == uint32(len(sk.Channels)) { // Channel is the next available channel.
+	// 64-bit drvSeed value to avoid collisions with seqNo's in the root tree!
+	// This value includes the channelID in the first 32 bits of the seed, and the seqNo in the last 32 bits.
+	drvSeed := uint64(chIdx)<<32 + uint64(seqNo)
 
-		// Construct the
+	// Compute drv (R) pseudorandomly from the seed.
+	drv := sk.ctx.prfUint64(pad, drvSeed, sk.skPrf)
 
-	} else { // Channel does not exist, and it not the next available channel.
-		return fmt.Errorf("channel %d does not exist, and is also not the next available channel", chIdx)
+	// Compute the chainTree.
+	ct := sk.genChainTree(pad, chIdx, sk.curChainLayer(chIdx))
+	ctRoot := ct.getRootNode()
+
+	// Hashed channelroot with H_msg
+	hashMsg, err := sk.ctx.hashMessage(pad, msg, drv, ctRoot, drvSeed)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	// Set OTSaddr to calculate the Wotsisng over the message.
+	ch := sk.Channels[chIdx]
+	var otsAddr address
+	otsAddr.setLayer(ch.layers)
+	otsAddr.setTree(uint64(chIdx))
+
+	// Compute the authentication path.
+
+	sig := ChannelSignature{
+		ctx:      sk.ctx,
+		seqNo:    seqNo,
+		drv:      drv,
+		wotsSig:  sk.ctx.wotsSign(pad, hashMsg, sk.pubSeed, sk.skSeed, otsAddr),
+		authPath: ct.AuthPath(ch.keyQty),
+	}
+
+	return &sig, nil
 }
 
 // Create a new channel, returns its index and the signature of its first chainTreeRoot.
@@ -249,7 +272,9 @@ func (sk *PrivateKey) createChannel() (uint32, *RootSignature, error) {
 	// Appending the created channel to the channellist in the PK.
 	sk.Channels = append(sk.Channels, ch)
 	// Create the first chainTree for the channel
-	ct := sk.genChainTree(chIdx, 0, pad)
+	ct := sk.genChainTree(pad, chIdx, 0)
+	// Update the channel.
+	ch.addChainTree(&ct)
 	// Get the root, and sign it.
 	root := ct.getRootNode()
 	// Sign the root.

@@ -56,7 +56,7 @@ func TestChannelSigning(t *testing.T) {
 	if err != nil {
 		t.Fatalf("keygeneration gave error %s", err)
 	}
-	err = sk.SignChannelMsg(0, []byte("Hello!"))
+	_, err = sk.SignChannelMsg(0, []byte("Hello!"))
 	if err != nil {
 		t.Fatalf("signChannelMsg failed with error %s", err)
 	}

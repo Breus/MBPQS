@@ -34,11 +34,12 @@ func (sk *PrivateKey) deriveChannel(chIdx uint32) *Channel {
 		idx:    chIdx,
 		layers: 0,
 		seqNo:  0,
+		keyQty: 0,
 	}
 }
 
 // Allocates a new ChainTree and returns a generated chaintree into the memory.
-func (sk *PrivateKey) genChainTree(chIdx, chLayer uint32, pad scratchPad) chainTree {
+func (sk *PrivateKey) genChainTree(pad scratchPad, chIdx, chLayer uint32) chainTree {
 	ct := newChainTree(sk.ctx.deriveChainTreeHeight(chLayer), sk.ctx.params.n)
 	sk.genChainTreeInto(pad, chIdx, chLayer, ct)
 	return ct
@@ -165,8 +166,8 @@ func (ctx *Context) deriveChainTreeHeight(chainLayer uint32) uint32 {
 	return ctx.params.chanH + ctx.params.ge*chainLayer
 }
 
-// GetChannelSeqNo retrieves the current index of the first signing key in the channel.
-func (sk *PrivateKey) GetChannelSeqNo(chIdx uint32) SignatureSeqNo {
+// ChannelSeqNo retrieves the current index of the first signing key in the channel.
+func (sk *PrivateKey) ChannelSeqNo(chIdx uint32) SignatureSeqNo {
 	ch := sk.Channels[chIdx]
 	ch.mux.Lock()
 	// Unlock the lock when the function is finished.
@@ -174,14 +175,30 @@ func (sk *PrivateKey) GetChannelSeqNo(chIdx uint32) SignatureSeqNo {
 
 	// TODO::::
 	// For now, only one chain tree is possible
-	if uint32(ch.seqNo) == sk.ctx.deriveChainTreeHeight(chIdx) {
-		// TODO: make new chain
+	if ch.keyQty == 1 {
+		// TODO: make new chain, update channel,
 		return SignatureSeqNo(0)
 	}
 	ch.seqNo++
+	ch.keyQty--
 	return ch.seqNo - 1
 }
 
-func (ch *Channel) curLayer() uint32 {
-	return ch.layers - 1
+// Returns the current chain layer.
+func (sk *PrivateKey) curChainLayer(chIdx uint32) uint32 {
+	return sk.Channels[chIdx].layers - 1
+}
+
+// Adds a chainTree ct to the channel and update the corersponding channel fields.
+func (ch *Channel) addChainTree(ct *chainTree) {
+	ch.mux.Lock()
+	ch.layers++
+	ch.keyQty = ch.keyQty + ct.height
+	ch.mux.Unlock()
+}
+
+// Retrieve the authpath, calculated from the amount of available keys.
+func (ct *chainTree) AuthPath(keyQty uint32) []byte {
+	// Authpath is alway the left node in the tree, thus index = 0.
+	return ct.node(keyQty-1, 0)
 }
