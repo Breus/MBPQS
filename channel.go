@@ -29,8 +29,8 @@ type chainTree struct {
 }
 
 // DeriveChannel creates a channel for chanelIdx.
-func (sk *PrivateKey) deriveChannel(chIdx uint32) Channel {
-	return Channel{
+func (sk *PrivateKey) deriveChannel(chIdx uint32) *Channel {
+	return &Channel{
 		idx:    chIdx,
 		layers: 0,
 		seqNo:  0,
@@ -38,9 +38,9 @@ func (sk *PrivateKey) deriveChannel(chIdx uint32) Channel {
 }
 
 // Allocates a new ChainTree and returns a generated chaintree into the memory.
-func (sk *PrivateKey) genChainTree(chIdx uint32, pad scratchPad) chainTree {
-	ct := newChainTree(sk.ctx.deriveChainTreeHeight(0), sk.ctx.params.n)
-	sk.genChainTreeInto(pad, chIdx, sk.Channels[chIdx].layers, ct)
+func (sk *PrivateKey) genChainTree(chIdx, chLayer uint32, pad scratchPad) chainTree {
+	ct := newChainTree(sk.ctx.deriveChainTreeHeight(chLayer), sk.ctx.params.n)
+	sk.genChainTreeInto(pad, chIdx, chLayer, ct)
 	return ct
 }
 
@@ -167,7 +167,7 @@ func (ctx *Context) deriveChainTreeHeight(chainLayer uint32) uint32 {
 
 // GetChannelSeqNo retrieves the current index of the first signing key in the channel.
 func (sk *PrivateKey) GetChannelSeqNo(chIdx uint32) SignatureSeqNo {
-	ch := &sk.Channels[chIdx]
+	ch := sk.Channels[chIdx]
 	ch.mux.Lock()
 	// Unlock the lock when the function is finished.
 	defer ch.mux.Unlock()

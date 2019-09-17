@@ -54,7 +54,7 @@ type PrivateKey struct {
 	 */
 
 	// Channels in the privatekey
-	Channels []Channel
+	Channels []*Channel
 
 	skSeed []byte
 	/* n-byte skPrf is used to randomize the message hash when signing.
@@ -223,22 +223,11 @@ func (sk *PrivateKey) GetSeqNo() (SignatureSeqNo, error) {
 }
 
 // SignChannelMsg signs the message 'msg' in the channel with
-func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) error /* ChannelSignature */ {
+func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) error {
 	if chIdx < uint32(len(sk.Channels)) { // Channel exists.
 		//ch := sk.Channels[chIdx]
 
 	} else if chIdx == uint32(len(sk.Channels)) { // Channel is the next available channel.
-		// Scratchpad to avoid computation allocations.
-		pad := sk.ctx.newScratchPad()
-		// Create a new channel, because it does not exist yet.
-		ch := sk.deriveChannel(chIdx)
-		// Appending the created channel to the channellist in the PK.
-		sk.Channels = append(sk.Channels, ch)
-		// Create the first chainTree.
-		ct := sk.genChainTree(chIdx, pad)
-		// Get the root, and sign it.
-
-		// Sign the root.
 
 		// Construct the
 
@@ -247,4 +236,27 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) error /* ChannelS
 	}
 
 	return nil
+}
+
+// Create a new channel, returns its index and the signature of its first chainTreeRoot.
+func (sk *PrivateKey) createChannel() (uint32, *RootSignature, error) {
+	// Determine the channelIndex.
+	chIdx := uint32(len(sk.Channels))
+	// Scratchpad to avoid computation allocations.
+	pad := sk.ctx.newScratchPad()
+	// Create a new channel, because it does not exist yet.
+	ch := sk.deriveChannel(uint32(chIdx))
+	// Appending the created channel to the channellist in the PK.
+	sk.Channels = append(sk.Channels, ch)
+	// Create the first chainTree for the channel
+	ct := sk.genChainTree(chIdx, 0, pad)
+	// Get the root, and sign it.
+	root := ct.getRootNode()
+	// Sign the root.
+	rtSig, err := sk.SignChannelRoot(root)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return chIdx, rtSig, nil
 }
