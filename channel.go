@@ -32,7 +32,7 @@ type chainTree struct {
 func (sk *PrivateKey) deriveChannel(chIdx uint32) *Channel {
 	return &Channel{
 		idx:        chIdx,
-		layers:     1,
+		layers:     0,
 		chainSeqNo: 0,
 		seqNo:      0,
 	}
@@ -171,12 +171,13 @@ func (ctx *Context) deriveChainTreeHeight(chainLayer uint32) uint32 {
 
 // ChannelSeqNos retrieves the current chainSeqNo and the current channelSeqNo.
 func (sk *PrivateKey) ChannelSeqNos(chIdx uint32) (uint32, SignatureSeqNo) {
-	ch := sk.Channels[chIdx-1]
+	ch := sk.getChannel(chIdx)
 	ch.mux.Lock()
 	// Unlock the lock when the function is finished.
 	defer ch.mux.Unlock()
-
+	fmt.Printf("Channel layers: %d\n", ch.layers)
 	if sk.ctx.deriveChainTreeHeight(ch.layers) == uint32(ch.chainSeqNo) {
+		fmt.Println("THIS WILL CRASH TEST")
 		// A new chainTree needs to be appended.
 		// TODO:
 	}
@@ -187,11 +188,11 @@ func (sk *PrivateKey) ChannelSeqNos(chIdx uint32) (uint32, SignatureSeqNo) {
 
 // Returns the current chain layer.
 func (sk *PrivateKey) curChainLayer(chIdx uint32) uint32 {
-	return sk.Channels[chIdx-1].layers - 1
+	return sk.getChannel(1).layers
 }
 
 // Adds a chainTree ct to the channel and update the corersponding channel fields.
-func (ch *Channel) addChainTree(ct *chainTree) {
+func (ch *Channel) addChainTree() {
 	ch.mux.Lock()
 	ch.layers++
 	ch.chainSeqNo = 0
@@ -214,4 +215,9 @@ func (ctx *Context) getNodeHeight(chainLayer, chainSeqNo uint32) uint32 {
 		return 0
 	}
 	return chainHeight - 2 - chainSeqNo
+}
+
+// Returns the channel on index input.
+func (sk *PrivateKey) getChannel(chIdx uint32) *Channel {
+	return sk.Channels[chIdx-1]
 }

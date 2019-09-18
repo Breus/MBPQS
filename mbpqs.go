@@ -220,15 +220,14 @@ func (sk *PrivateKey) GetSeqNo() (SignatureSeqNo, error) {
 
 // SignChannelMsg signs the message 'msg' in the channel with
 func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*ChannelSignature, error) {
-	// Create scratchpad to avoid memory allocations.
-	pad := sk.ctx.newScratchPad()
-	// Check if the channel exists.
+	// Returns an error if the channel does not exist.
 	if chIdx >= uint32(len(sk.Channels)+1) {
 		return nil, fmt.Errorf("channel does not exist, please create it first")
 	}
+	// Create scratchpad to avoid memory allocations.
+	pad := sk.ctx.newScratchPad()
 	// Retrieve and update chainSeqNo and channel seqNo
 	chainSeqNo, seqNo := sk.ChannelSeqNos(chIdx)
-
 	// 64-bit drvSeed value to avoid collisions with seqNo's in the root tree!
 	// This value includes the channelID in the first 32 bits of the seed, and the seqNo in the last 32 bits.
 	sigIdx := uint64(chIdx)<<32 + uint64(seqNo)
@@ -282,10 +281,11 @@ func (sk *PrivateKey) createChannel() (uint32, *RootSignature, error) {
 	ch := sk.deriveChannel(chIdx)
 	// Appending the created channel to the channellist in the PK.
 	sk.Channels = append(sk.Channels, ch)
+	// Update the channel.
+	ch.addChainTree()
+	fmt.Printf("LAYERS BABY: %d\n", sk.getChannel(1).layers)
 	// Create the first chainTree for the channel
 	ct := sk.genChainTree(pad, chIdx, 1)
-	// Update the channel.
-	ch.addChainTree(&ct)
 	// Get the root, and sign it.
 	root := ct.getRootNode()
 	// Sign the root.
