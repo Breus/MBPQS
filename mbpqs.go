@@ -336,6 +336,7 @@ func (pk *PublicKey) VerifyChannelMsg(sig *ChannelSignature, msg, prevAuthPath [
 	var nodeAddr address
 	nodeAddr.setSubTreeFrom(addr)
 	nodeAddr.setType(treeAddrType)
+	fmt.Println(pk.ctx.getNodeHeight(sig.layer, sig.chainSeqNo))
 	nodeAddr.setTreeHeight(pk.ctx.getNodeHeight(sig.layer, sig.chainSeqNo))
 	nodeAddr.setTreeIndex(0)
 	fmt.Printf("Node address in verification %d", nodeAddr)

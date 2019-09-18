@@ -132,7 +132,7 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer uint32, ct
 // Returns a slice of the leaf at given leaf index.
 func (ct *chainTree) leaf(idx uint32) []byte {
 	if idx == ct.height-1 {
-		return ct.node(0, 1)
+		return ct.node(0, 0)
 	}
 
 	h := ct.height - 2 - idx
@@ -210,7 +210,7 @@ func (ct *chainTree) AuthPath(sig uint32) []byte {
 // Get node height of a node on chainLayer with chainSeqNo chainSeqNo.
 func (ctx *Context) getNodeHeight(chainLayer, chainSeqNo uint32) uint32 {
 	chainHeight := ctx.deriveChainTreeHeight(chainLayer)
-	if chainHeight == chainSeqNo {
+	if chainHeight-1 == chainSeqNo {
 		return 0
 	}
 	return chainHeight - 2 - chainSeqNo
