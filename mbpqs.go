@@ -32,11 +32,10 @@ type ChannelSignature struct {
 
 // Channel is a key channel within the MBPQS tree, are stacked chain trees with the same Tree address.
 type Channel struct {
-	idx    uint32         // The chIdx is the offset of the channel in the MBPQS tree.
-	layers uint32         // The amount of chain layers in the channel.
-	seqNo  SignatureSeqNo // The first signatureseqno available for signing in this channel.
-	keyQty uint32         // Amount of available keys before a new chainTree root should be created.
-	mux    sync.Mutex     // Used when mutual exclusion for the channel is required.
+	idx        uint32         // The chIdx is the offset of the channel in the MBPQS tree.
+	layers     uint32         // The amount of chain layers in the channel.
+	chainSeqNo SignatureSeqNo // The first signatureseqno available for signing in the channel (last chain).
+	mux        sync.Mutex     // Used when mutual exclusion for the channel is required.
 }
 
 // PrivateKey is a MBPQS private key */
@@ -245,7 +244,7 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*ChannelSignatur
 	otsAddr.setTree(uint64(chIdx))
 
 	// Select the authentication node in the tree.
-	authPathNode := ct.AuthPath(ch.keyQty)
+	authPathNode := ct.AuthPath(uint32(ch.chainSeqNo))
 
 	hashMsg, err := sk.ctx.hashMessage(pad, msg, drv, sk.root, sigIdx)
 	if err != nil {
@@ -316,6 +315,8 @@ func (pk *PublicKey) VerifyChannelMsg(sig *ChannelSignature, msg []byte) (bool, 
 	otsAddr.setOTS(uint32(sig.seqNo))
 	// Ltree addr
 	lTreeAddr.setSubTreeFrom(addr)
+	lTreeAddr.setType(lTreeAddrType)
+	lTreeAddr.setLTree(uint32(sig.seqNo))
 
 	wotsPk := pad.wotsBuf()
 	pk.ctx.wotsPkFromSigInto(pad, sig.wotsSig, hashMsg, pk.ph, otsAddr, wotsPk)

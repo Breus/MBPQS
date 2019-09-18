@@ -31,10 +31,9 @@ type chainTree struct {
 // DeriveChannel creates a channel for chanelIdx.
 func (sk *PrivateKey) deriveChannel(chIdx uint32) *Channel {
 	return &Channel{
-		idx:    chIdx,
-		layers: 0,
-		seqNo:  0,
-		keyQty: 0,
+		idx:        chIdx,
+		layers:     0,
+		chainSeqNo: 0,
 	}
 }
 
@@ -129,10 +128,11 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer uint32, ct
 
 // Returns a slice of the leaf at given leaf index.
 func (ct *chainTree) leaf(idx uint32) []byte {
-	if idx == 0 {
-		return ct.node(0, 0)
+	if idx == ct.height-1 {
+		return ct.node(0, 1)
 	}
-	return ct.node((idx - 1), 1)
+	h := ct.height - 2 - idx
+	return ct.node(h, 1)
 }
 
 // Returns a slice of the node at given height and index idx in the chain tree.
@@ -172,15 +172,13 @@ func (sk *PrivateKey) ChannelSeqNo(chIdx uint32) SignatureSeqNo {
 	// Unlock the lock when the function is finished.
 	defer ch.mux.Unlock()
 
-	// TODO::::
-	// For now, only one chain tree is possible
-	if ch.keyQty == 1 {
-		// TODO: make new chain, update channel,
-		return SignatureSeqNo(0)
+	if sk.ctx.deriveChainTreeHeight(ch.layers) == uint32(ch.chainSeqNo) {
+		// A new chainTree needs to be appended.
+		// TODO:
 	}
-	ch.seqNo++
-	ch.keyQty--
-	return ch.seqNo - 1
+
+	ch.chainSeqNo++
+	return ch.chainSeqNo - 1
 }
 
 // Returns the current chain layer.
@@ -192,12 +190,15 @@ func (sk *PrivateKey) curChainLayer(chIdx uint32) uint32 {
 func (ch *Channel) addChainTree(ct *chainTree) {
 	ch.mux.Lock()
 	ch.layers++
-	ch.keyQty = ch.keyQty + ct.height
+	ch.chainSeqNo = 0
 	ch.mux.Unlock()
 }
 
 // Retrieve the authpath, calculated from the amount of available keys.
-func (ct *chainTree) AuthPath(keyQty uint32) []byte {
+func (ct *chainTree) AuthPath(sig uint32) []byte {
 	// Authpath is alway the left node in the tree, thus index = 0.
-	return ct.node(keyQty-1, 0)
+	if sig == ct.height-1 {
+		return ct.node(0, 1)
+	}
+	return ct.node(ct.height-2-sig, 0)
 }
