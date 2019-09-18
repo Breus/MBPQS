@@ -17,6 +17,7 @@ type RootSignature struct {
 	drv      []byte         // digest randomized value (r).
 	wotsSig  []byte         // the WOTS signature over the channel root.
 	authPath []byte         // the authentication path for this signature to the rootTree root node.
+	rootHash []byte         // channelRoot which is signed.
 }
 
 // ChannelSignature holds a signature on a message in a channel.
@@ -143,6 +144,7 @@ func (sk *PrivateKey) SignChannelRoot(chRt []byte) (*RootSignature, error) {
 		drv:      drv,
 		wotsSig:  sk.ctx.wotsSign(pad, hashChRt, sk.pubSeed, sk.skSeed, otsAddr),
 		authPath: authPath,
+		rootHash: hashChRt,
 	}
 	return &sig, nil
 }
@@ -332,9 +334,9 @@ func (pk *PublicKey) VerifyChannelMsg(sig *ChannelSignature, msg, prevAuthPath [
 	nodeAddr.setType(treeAddrType)
 	nodeAddr.setTreeHeight(pk.ctx.getNodeHeight(sig.layer, sig.chainSeqNo))
 	nodeAddr.setTreeIndex(0)
-
 	pk.ctx.hInto(pad, sig.authPath, curHash, pk.ph, nodeAddr, curHash)
 
+	// Compare the computed value with the previous authentication path node.
 	if subtle.ConstantTimeCompare(curHash, prevAuthPath) != 1 {
 		return false, fmt.Errorf("invalid signature")
 	}

@@ -132,6 +132,7 @@ func (ct *chainTree) leaf(idx uint32) []byte {
 	if idx == ct.height-1 {
 		return ct.node(0, 1)
 	}
+	fmt.Println(ct.height)
 	h := ct.height - 2 - idx
 	return ct.node(h, 1)
 }

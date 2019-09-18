@@ -51,13 +51,29 @@ func TestSignAndVerify(t *testing.T) {
 	}
 }
 
-func TestChannelSigning(t *testing.T) {
+func TestNonExistingChannelSigning(t *testing.T) {
 	sk, _, err := GenerateKeyPair(&Params{n: 32, w: 4, ge: 1, rootH: 4, chanH: 10})
 	if err != nil {
 		t.Fatalf("keygeneration gave error %s", err)
 	}
 	_, err = sk.SignChannelMsg(0, []byte("Hello!"))
-	if err != nil {
-		t.Fatalf("signChannelMsg failed with error %s", err)
+	if err == nil {
+		t.Fatal("signing in a non-existant channel did not give an error")
 	}
+}
+
+func TestChannelSigning(t *testing.T) {
+	sk, _, err := GenerateKeyPair(&Params{n: 32, w: 4, ge: 1, rootH: 4, chanH: 10})
+	if err != nil {
+		t.Fatalf("keygeneration gave error %s", err)
+	}
+
+	_, _, err = sk.createChannel()
+	if err != nil {
+		t.Fatalf("channel creation failed with error %s", err)
+	}
+	// _, err = sk.SignChannelMsg(chIdx, []byte("Hello!"))
+	// if err == nil {
+	// 	t.Fatal("signing in a non-existant channel did not give an error")
+	// }
 }
