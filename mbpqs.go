@@ -247,6 +247,7 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*ChannelSignatur
 	otsAddr.setTree(uint64(chIdx))
 
 	// Select the authentication node in the tree.
+	fmt.Printf("Input to authpath function is: %d\n", uint32(chainSeqNo))
 	authPathNode := ct.AuthPath(uint32(chainSeqNo))
 
 	hashMsg, err := sk.ctx.hashMessage(pad, msg, drv, sk.root, sigIdx)
@@ -263,8 +264,11 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*ChannelSignatur
 		chIdx:      chIdx,
 		layer:      chLayer,
 	}
-
+	fmt.Printf("Tree: %d", ct.buf)
+	fmt.Printf("Authnode in signing :%d\n", authPathNode)
+	fmt.Printf("Input to leaf in signing: %d\n", chainSeqNo)
 	fmt.Printf("Leaf in signing: %d\n", ct.leaf(chainSeqNo))
+
 	return &sig, nil
 }
 

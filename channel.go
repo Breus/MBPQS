@@ -68,7 +68,6 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer uint32, ct
 		for idx = 0; idx < ct.height; idx++ {
 			lTreeAddr.setLTree(idx)
 			otsAddr.setOTS(idx)
-
 			copy(ct.leaf(idx), sk.ctx.genLeaf(pad, sk.ph, lTreeAddr, otsAddr))
 		}
 	} else {
@@ -97,10 +96,13 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer uint32, ct
 					ourEnd := ourIdx + perBatch
 					if ourEnd > ct.height {
 						ourEnd = ct.height
+						fmt.Println(ct.height)
 					}
 					for ; ourIdx < ourEnd; ourIdx++ {
 						lTreeAddr.setLTree(ourIdx)
 						otsAddr.setOTS(ourIdx)
+						fmt.Printf("WHAT IS COMPUTED FOR LEAF %d: %d\n", ourIdx, sk.ctx.genLeaf(pad, sk.ph, lTreeAddr, otsAddr))
+
 						copy(ct.leaf(ourIdx), sk.ctx.genLeaf(
 							pad,
 							sk.ph,
@@ -164,7 +166,7 @@ func chainTreeFromBuf(buf []byte, height, n uint32) chainTree {
 
 // Returns the height of a chain tree at layer chainLayer.
 func (ctx *Context) deriveChainTreeHeight(chainLayer uint32) uint32 {
-	return ctx.params.chanH + ctx.params.ge*chainLayer
+	return ctx.params.chanH + ctx.params.ge*(chainLayer-1)
 }
 
 // ChannelSeqNos retrieves the current chainSeqNo and the current channelSeqNo.

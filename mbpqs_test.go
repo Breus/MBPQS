@@ -5,7 +5,7 @@ import (
 )
 
 func TestSignAndVerify(t *testing.T) {
-	params := &Params{n: 32, w: 16, ge: 1, rootH: 2, chanH: 3}
+	params := &Params{n: 32, w: 16, ge: 1, rootH: 2, chanH: 6}
 	sk, pk, err := GenerateKeyPair(params)
 	if err != nil {
 		t.Fatalf("key generation went wrong %s", err)
@@ -64,7 +64,7 @@ func TestNonExistingChannelSigning(t *testing.T) {
 
 func TestChannelSigning(t *testing.T) {
 	// Create MBPQS keypair.
-	sk, pk, err := GenerateKeyPair(&Params{n: 32, w: 4, ge: 1, rootH: 4, chanH: 2})
+	sk, pk, err := GenerateKeyPair(&Params{n: 32, w: 4, ge: 1, rootH: 3, chanH: 4})
 	if err != nil {
 		t.Fatalf("keygeneration gave error %s", err)
 	}
@@ -93,9 +93,31 @@ func TestChannelSigning(t *testing.T) {
 
 	// Sign the message "hello" in this channel.
 	msg3 := []byte("This is the message to be signed")
-	_, err = sk.SignChannelMsg(chIdx, msg3)
+	chSig2, err := sk.SignChannelMsg(chIdx, msg3)
 	if err != nil {
 		t.Fatalf("signing in channel failed with error %s", err)
 	}
 
+	accept2, err := pk.VerifyChannelMsg(chSig2, msg3, chSig.authPath)
+	if err != nil {
+		t.Fatalf("verification of right message failed with errror %s", err)
+	}
+	if !accept2 {
+		t.Fatalf("verification of correct message/signature pair not accepted")
+	}
+
+	// Sign the message "hello" in this channel.
+	msg4 := []byte("This is the message to be signed")
+	chSig3, err := sk.SignChannelMsg(chIdx, msg4)
+	if err != nil {
+		t.Fatalf("signing in channel failed with error %s", err)
+	}
+
+	accept3, err := pk.VerifyChannelMsg(chSig3, msg4, chSig2.authPath)
+	if err != nil {
+		t.Fatalf("verification of right message failed with errror %s", err)
+	}
+	if !accept3 {
+		t.Fatalf("verification of correct message/signature pair not accepted")
+	}
 }
