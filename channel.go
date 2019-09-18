@@ -57,7 +57,6 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer uint32, ct
 
 	addr := sta.address()
 	otsAddr.setSubTreeFrom(addr)
-	otsAddr.setType(otsAddrType)
 	lTreeAddr.setSubTreeFrom(addr)
 	lTreeAddr.setType(lTreeAddrType)
 	nodeAddr.setSubTreeFrom(addr)
