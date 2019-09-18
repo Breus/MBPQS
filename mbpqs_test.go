@@ -92,8 +92,8 @@ func TestChannelSigning(t *testing.T) {
 	}
 
 	// Sign the message "hello" in this channel.
-	msg2 := []byte("This is the message to be signed")
-	_, err = sk.SignChannelMsg(chIdx, msg2)
+	msg3 := []byte("This is the message to be signed")
+	_, err = sk.SignChannelMsg(chIdx, msg3)
 	if err != nil {
 		t.Fatalf("signing in channel failed with error %s", err)
 	}

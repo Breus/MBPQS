@@ -279,7 +279,7 @@ func (sk *PrivateKey) createChannel() (uint32, *RootSignature, error) {
 	// Appending the created channel to the channellist in the PK.
 	sk.Channels = append(sk.Channels, ch)
 	// Create the first chainTree for the channel
-	ct := sk.genChainTree(pad, chIdx, 0)
+	ct := sk.genChainTree(pad, chIdx, 1)
 	// Update the channel.
 	ch.addChainTree(&ct)
 	// Get the root, and sign it.
@@ -326,7 +326,6 @@ func (pk *PublicKey) VerifyChannelMsg(sig *ChannelSignature, msg, prevAuthPath [
 	lTreeAddr.setSubTreeFrom(addr)
 	lTreeAddr.setType(lTreeAddrType)
 	lTreeAddr.setLTree(uint32(sig.chainSeqNo))
-	fmt.Println(lTreeAddr)
 	curHash := pk.ctx.lTree(pad, wotsPk, pk.ph, lTreeAddr)
 	fmt.Printf("Current leaf in verification: %d\n", curHash)
 	// Now hash the leaf with the authentication path.
@@ -335,6 +334,8 @@ func (pk *PublicKey) VerifyChannelMsg(sig *ChannelSignature, msg, prevAuthPath [
 	nodeAddr.setType(treeAddrType)
 	nodeAddr.setTreeHeight(pk.ctx.getNodeHeight(sig.layer, sig.chainSeqNo))
 	nodeAddr.setTreeIndex(0)
+	fmt.Printf("Node address in verification %d", nodeAddr)
+
 	pk.ctx.hInto(pad, sig.authPath, curHash, pk.ph, nodeAddr, curHash)
 
 	// Compare the computed value with the previous authentication path node.

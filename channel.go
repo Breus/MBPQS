@@ -61,7 +61,6 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer uint32, ct
 	lTreeAddr.setType(lTreeAddrType)
 	nodeAddr.setSubTreeFrom(addr)
 	nodeAddr.setType(treeAddrType)
-	fmt.Println(lTreeAddr)
 	// First, compute the leafs of the chain tree.
 	var idx uint32
 	if sk.ctx.threads == 1 {
@@ -123,6 +122,7 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer uint32, ct
 		nodeAddr.setTreeHeight(height - 1)
 		// Internal nodes and root node have Treeindex 0.
 		nodeAddr.setTreeIndex(0)
+		fmt.Printf("Node address in tree gen %d at tree height %d\n", nodeAddr, height)
 		sk.ctx.hInto(pad, ct.node(height-1, 0), ct.node(height-1, 1), sk.ph, nodeAddr, ct.node(height, 0))
 	}
 }
