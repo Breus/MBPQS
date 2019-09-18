@@ -223,7 +223,7 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*ChannelSignatur
 	// Create scratchpad to avoid memory allocations.
 	pad := sk.ctx.newScratchPad()
 	// Check if the channel exists.
-	if chIdx >= uint32(len(sk.Channels)) {
+	if chIdx >= uint32(len(sk.Channels)+1) {
 		return nil, fmt.Errorf("channel does not exist, please create it first")
 	}
 	// Retrieve and update chainSeqNo and channel seqNo
@@ -264,13 +264,14 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*ChannelSignatur
 		layer:      chLayer,
 	}
 
+	fmt.Printf("Leaf in signing: %d\n", ct.leaf(chainSeqNo))
 	return &sig, nil
 }
 
 // Create a new channel, returns its index and the signature of its first chainTreeRoot.
 func (sk *PrivateKey) createChannel() (uint32, *RootSignature, error) {
 	// Determine the channelIndex.
-	chIdx := uint32(len(sk.Channels))
+	chIdx := uint32(len(sk.Channels) + 1)
 	// Scratchpad to avoid computation allocations.
 	pad := sk.ctx.newScratchPad()
 	// Create a new channel, because it does not exist yet.
@@ -325,8 +326,9 @@ func (pk *PublicKey) VerifyChannelMsg(sig *ChannelSignature, msg, prevAuthPath [
 	lTreeAddr.setSubTreeFrom(addr)
 	lTreeAddr.setType(lTreeAddrType)
 	lTreeAddr.setLTree(uint32(sig.chainSeqNo))
+	fmt.Println(lTreeAddr)
 	curHash := pk.ctx.lTree(pad, wotsPk, pk.ph, lTreeAddr)
-
+	fmt.Printf("Current leaf in verification: %d\n", curHash)
 	// Now hash the leaf with the authentication path.
 	var nodeAddr address
 	nodeAddr.setSubTreeFrom(addr)

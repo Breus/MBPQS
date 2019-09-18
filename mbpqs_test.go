@@ -1,7 +1,6 @@
 package mbpqs
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -83,8 +82,6 @@ func TestChannelSigning(t *testing.T) {
 		t.Fatalf("signing in channel failed with error %s", err)
 	}
 
-	fmt.Printf("RootHash: %d", chRtSig.rootHash)
-
 	// Verify the channel message.
 	accept, err := pk.VerifyChannelMsg(chSig, msg, chRtSig.rootHash)
 	if err != nil {
@@ -96,12 +93,9 @@ func TestChannelSigning(t *testing.T) {
 
 	// Sign the message "hello" in this channel.
 	msg2 := []byte("This is the message to be signed")
-	chSig2, err := sk.SignChannelMsg(chIdx, msg2)
+	_, err = sk.SignChannelMsg(chIdx, msg2)
 	if err != nil {
 		t.Fatalf("signing in channel failed with error %s", err)
 	}
-
-	fmt.Println(chSig2.seqNo)
-	fmt.Println(chSig2.chainSeqNo)
 
 }

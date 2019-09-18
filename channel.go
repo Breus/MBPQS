@@ -32,7 +32,7 @@ type chainTree struct {
 func (sk *PrivateKey) deriveChannel(chIdx uint32) *Channel {
 	return &Channel{
 		idx:        chIdx,
-		layers:     0,
+		layers:     1,
 		chainSeqNo: 0,
 		seqNo:      0,
 	}
@@ -61,7 +61,7 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer uint32, ct
 	lTreeAddr.setType(lTreeAddrType)
 	nodeAddr.setSubTreeFrom(addr)
 	nodeAddr.setType(treeAddrType)
-
+	fmt.Println(lTreeAddr)
 	// First, compute the leafs of the chain tree.
 	var idx uint32
 	if sk.ctx.threads == 1 {
@@ -145,7 +145,6 @@ func (ct *chainTree) node(height, idx uint32) []byte {
 
 // Gets the root node of the chain tree.
 func (ct *chainTree) getRootNode() []byte {
-	fmt.Printf("Computed root hash: %d", ct.node(ct.height-1, 0))
 	return ct.node(ct.height-1, 0)
 }
 
@@ -170,7 +169,7 @@ func (ctx *Context) deriveChainTreeHeight(chainLayer uint32) uint32 {
 
 // ChannelSeqNos retrieves the current chainSeqNo and the current channelSeqNo.
 func (sk *PrivateKey) ChannelSeqNos(chIdx uint32) (uint32, SignatureSeqNo) {
-	ch := sk.Channels[chIdx]
+	ch := sk.Channels[chIdx-1]
 	ch.mux.Lock()
 	// Unlock the lock when the function is finished.
 	defer ch.mux.Unlock()
@@ -186,7 +185,7 @@ func (sk *PrivateKey) ChannelSeqNos(chIdx uint32) (uint32, SignatureSeqNo) {
 
 // Returns the current chain layer.
 func (sk *PrivateKey) curChainLayer(chIdx uint32) uint32 {
-	return sk.Channels[chIdx].layers - 1
+	return sk.Channels[chIdx-1].layers - 1
 }
 
 // Adds a chainTree ct to the channel and update the corersponding channel fields.
