@@ -9,13 +9,13 @@ import (
 /* Represents a height t chainTree of n-byte string nodes N[i,j] as:
  					N[t-1,0]
 					/	 |
-			  N(t-2,1)  N(t-2,1)
+			  N(t-2,1)  N(t-2,1) (t-2 - t-2 = 0)
 				/ |
 			   (...)
 			  /	  |
-	      N(1,0) N(1,1)
+	      N(1,0) N(1,1) (id: t-2-1)
 		  /	  |
-	 N(0,0)	 N(0,1)
+(t-1) N(0,0) N(0,1) (id: t-2-0)
 
 
 	The buf array is structered as follows:
@@ -34,6 +34,7 @@ func (sk *PrivateKey) deriveChannel(chIdx uint32) *Channel {
 		idx:        chIdx,
 		layers:     0,
 		chainSeqNo: 0,
+		seqNo:      0,
 	}
 }
 
@@ -165,8 +166,8 @@ func (ctx *Context) deriveChainTreeHeight(chainLayer uint32) uint32 {
 	return ctx.params.chanH + ctx.params.ge*chainLayer
 }
 
-// ChannelSeqNo retrieves the current index of the first signing key in the channel.
-func (sk *PrivateKey) ChannelSeqNo(chIdx uint32) SignatureSeqNo {
+// ChannelSeqNos retrieves the current chainSeqNo and the current channelSeqNo.
+func (sk *PrivateKey) ChannelSeqNos(chIdx uint32) (uint32, SignatureSeqNo) {
 	ch := sk.Channels[chIdx]
 	ch.mux.Lock()
 	// Unlock the lock when the function is finished.
@@ -176,9 +177,9 @@ func (sk *PrivateKey) ChannelSeqNo(chIdx uint32) SignatureSeqNo {
 		// A new chainTree needs to be appended.
 		// TODO:
 	}
-
+	ch.seqNo++
 	ch.chainSeqNo++
-	return ch.chainSeqNo - 1
+	return ch.chainSeqNo - 1, ch.seqNo - 1
 }
 
 // Returns the current chain layer.
@@ -201,4 +202,13 @@ func (ct *chainTree) AuthPath(sig uint32) []byte {
 		return ct.node(0, 1)
 	}
 	return ct.node(ct.height-2-sig, 0)
+}
+
+// Get node height of a node on chainLayer with chainSeqNo chainSeqNo.
+func (ctx *Context) getNodeHeight(chainLayer, chainSeqNo uint32) uint32 {
+	chainHeight := ctx.deriveChainTreeHeight(chainLayer)
+	if chainHeight == chainSeqNo {
+		return 0
+	}
+	return chainHeight - 2 - chainSeqNo
 }

@@ -156,7 +156,7 @@ func (ctx *Context) fInto(pad scratchPad, in []byte, ph precomputedHashes, addr 
 	ctx.hashInto(pad, buf, out)
 }
 
-/* Computes H(toByte(1,32) || KEY || i).
+/* Computes H(toByte(1,32) || KEY || LEFT || RIGHT || i).
  * Used to hash up trees (lTree, RootTree, ChainTree).
  */
 func (ctx *Context) h(left, right, pubSeed []byte, addr address) []byte {
