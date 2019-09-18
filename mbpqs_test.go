@@ -1,6 +1,7 @@
 package mbpqs
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -63,17 +64,44 @@ func TestNonExistingChannelSigning(t *testing.T) {
 }
 
 func TestChannelSigning(t *testing.T) {
-	sk, _, err := GenerateKeyPair(&Params{n: 32, w: 4, ge: 1, rootH: 4, chanH: 10})
+	// Create MBPQS keypair.
+	sk, pk, err := GenerateKeyPair(&Params{n: 32, w: 4, ge: 1, rootH: 4, chanH: 2})
 	if err != nil {
 		t.Fatalf("keygeneration gave error %s", err)
 	}
 
-	_, _, err = sk.createChannel()
+	// Create a channel.
+	chIdx, chRtSig, err := sk.createChannel()
 	if err != nil {
 		t.Fatalf("channel creation failed with error %s", err)
 	}
-	// _, err = sk.SignChannelMsg(chIdx, []byte("Hello!"))
-	// if err == nil {
-	// 	t.Fatal("signing in a non-existant channel did not give an error")
-	// }
+
+	// Sign the message "hello" in this channel.
+	msg := []byte("This is the message to be signed")
+	chSig, err := sk.SignChannelMsg(chIdx, msg)
+	if err != nil {
+		t.Fatalf("signing in channel failed with error %s", err)
+	}
+
+	fmt.Printf("RootHash: %d", chRtSig.rootHash)
+
+	// Verify the channel message.
+	accept, err := pk.VerifyChannelMsg(chSig, msg, chRtSig.rootHash)
+	if err != nil {
+		t.Fatalf("verification of right message failed with errror %s", err)
+	}
+	if !accept {
+		t.Fatalf("verification of correct message/signature pair not accepted")
+	}
+
+	// Sign the message "hello" in this channel.
+	msg2 := []byte("This is the message to be signed")
+	chSig2, err := sk.SignChannelMsg(chIdx, msg2)
+	if err != nil {
+		t.Fatalf("signing in channel failed with error %s", err)
+	}
+
+	fmt.Println(chSig2.seqNo)
+	fmt.Println(chSig2.chainSeqNo)
+
 }

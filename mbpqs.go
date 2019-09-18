@@ -144,7 +144,7 @@ func (sk *PrivateKey) SignChannelRoot(chRt []byte) (*RootSignature, error) {
 		drv:      drv,
 		wotsSig:  sk.ctx.wotsSign(pad, hashChRt, sk.pubSeed, sk.skSeed, otsAddr),
 		authPath: authPath,
-		rootHash: hashChRt,
+		rootHash: chRt,
 	}
 	return &sig, nil
 }
@@ -253,7 +253,6 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*ChannelSignatur
 	if err != nil {
 		return nil, err
 	}
-
 	sig := ChannelSignature{
 		ctx:        sk.ctx,
 		chainSeqNo: chainSeqNo,
@@ -338,7 +337,7 @@ func (pk *PublicKey) VerifyChannelMsg(sig *ChannelSignature, msg, prevAuthPath [
 
 	// Compare the computed value with the previous authentication path node.
 	if subtle.ConstantTimeCompare(curHash, prevAuthPath) != 1 {
-		return false, fmt.Errorf("invalid signature")
+		return false, nil
 	}
 	return true, nil
 }

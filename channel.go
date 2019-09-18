@@ -47,7 +47,7 @@ func (sk *PrivateKey) genChainTree(pad scratchPad, chIdx, chLayer uint32) chainT
 
 // Generates a chain tree into ct.
 func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer uint32, ct chainTree) {
-	fmt.Println("Generating chainTree...")
+	fmt.Println("Generating Chain Tree...")
 	// Init addresses for OTS, LTree nodes, and Tree nodes.
 	var otsAddr, lTreeAddr, nodeAddr address
 	sta := SubTreeAddress{
@@ -132,7 +132,7 @@ func (ct *chainTree) leaf(idx uint32) []byte {
 	if idx == ct.height-1 {
 		return ct.node(0, 1)
 	}
-	fmt.Println(ct.height)
+
 	h := ct.height - 2 - idx
 	return ct.node(h, 1)
 }
@@ -145,12 +145,13 @@ func (ct *chainTree) node(height, idx uint32) []byte {
 
 // Gets the root node of the chain tree.
 func (ct *chainTree) getRootNode() []byte {
+	fmt.Printf("Computed root hash: %d", ct.node(ct.height-1, 0))
 	return ct.node(ct.height-1, 0)
 }
 
 // Allocates memory for a chain tree of n-byte strings with height-1.
 func newChainTree(height, n uint32) chainTree {
-	return chainTreeFromBuf(make([]byte, (2*height-1)*2), height, n)
+	return chainTreeFromBuf(make([]byte, (2*height-1)*n), height, n)
 }
 
 // Makes a chain tree from a buffer.
