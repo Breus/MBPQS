@@ -191,7 +191,7 @@ func TestChannelSigningGrowing(t *testing.T) {
 	}
 
 	// Verify the growSignature.
-	accept4, err := pk.verifyChainTreeRoot(growSig.msgSig, growSig.rootHash, chSig3.authPath)
+	accept4, err := pk.verifyChainTreeRoot(growSig, chSig3.authPath)
 	if err != nil {
 		t.Fatalf("Verification of growth signature failed with error %s", err)
 	}

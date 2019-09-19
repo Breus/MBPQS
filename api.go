@@ -16,6 +16,16 @@ func (pk *PublicKey) VerifyChannel(rt *RootSignature, channelRoot []byte) (bool,
 	return pk.VerifyChannelRoot(rt, channelRoot)
 }
 
+// GrowChannel adds a chainTree to the channel.
+func (sk *PrivateKey) GrowChannel(chIdx uint32) (*GrowSignature, error) {
+	return sk.growChannel(chIdx)
+}
+
+// VerifyGrow verifies the growing signature.
+func (pk *PublicKey) VerifyGrow(sig *GrowSignature, authNode []byte) (bool, error) {
+	return pk.verifyChainTreeRoot(sig, authNode)
+}
+
 // SignMsg returns the signature over the message in channel with index chIdx.
 func (sk *PrivateKey) SignMsg(chIdx uint32, msg []byte) (*MsgSignature, error) {
 	return sk.SignChannelMsg(chIdx, msg, false)

@@ -29,7 +29,6 @@ type MsgSignature struct {
 	chainSeqNo uint32         // Sequence number of this signature in the used chain tree.
 	chIdx      uint32         // In which channel the signature.
 	layer      uint32         // From which chainTree layer the key comes.
-	rootSig    *RootSignature // In case it is the first signature in a chain tree, it includes a pointer to the root signature.
 }
 
 // GrowSignature is a signature of the last OTS key in a chain tree over the next chain tree.
@@ -220,18 +219,6 @@ func (sk *PrivateKey) GetSeqNo() (SignatureSeqNo, error) {
 	}
 	sk.seqNo++
 	return sk.seqNo - 1, nil
-}
-
-// GrowChannel sign the message 'msg' in the channel and checks for growth.
-func (sk *PrivateKey) GrowChannel(chIdx uint32) (*GrowSignature, error) {
-	ch := sk.getChannel(chIdx)
-	if !(sk.ctx.deriveChainTreeHeight(ch.layers)-1 == uint32(ch.chainSeqNo)) {
-		fmt.Printf("Tree height: %d\n", sk.ctx.deriveChainTreeHeight(ch.layers))
-		fmt.Printf("ChainSeqNo: %d\n", uint32(ch.chainSeqNo))
-
-		return nil, fmt.Errorf("last chainTree hasn't used its full capacity yet")
-	}
-	return sk.appendChainTree(chIdx)
 }
 
 // SignChannelMsg signs the message 'msg' in the channel with index chIdx.

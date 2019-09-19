@@ -247,32 +247,44 @@ func (sk *PrivateKey) signChainTreeRoot(chIdx uint32,
 	}, nil
 }
 
+// GrowChannel sign the message 'msg' in the channel and checks for growth.
+func (sk *PrivateKey) growChannel(chIdx uint32) (*GrowSignature, error) {
+	ch := sk.getChannel(chIdx)
+	if !(sk.ctx.deriveChainTreeHeight(ch.layers)-1 == uint32(ch.chainSeqNo)) {
+		fmt.Printf("Tree height: %d\n", sk.ctx.deriveChainTreeHeight(ch.layers))
+		fmt.Printf("ChainSeqNo: %d\n", uint32(ch.chainSeqNo))
+
+		return nil, fmt.Errorf("last chainTree hasn't used its full capacity yet")
+	}
+	return sk.appendChainTree(chIdx)
+}
+
 // Verify a chainTree root signature, part of the growsignature.
-func (pk *PublicKey) verifyChainTreeRoot(sig *MsgSignature, ctRoot,
+func (pk *PublicKey) verifyChainTreeRoot(sig *GrowSignature,
 	authNode []byte) (bool, error) {
 	pad := pk.ctx.newScratchPad()
 
-	sigIdx := uint64(sig.chIdx)<<32 + uint64(sig.seqNo)
-	hashCtRoot, err := pk.ctx.hashMessage(pad, ctRoot, sig.drv, pk.root, sigIdx)
+	sigIdx := uint64(sig.msgSig.chIdx)<<32 + uint64(sig.msgSig.seqNo)
+	hashCtRoot, err := pk.ctx.hashMessage(pad, sig.rootHash, sig.msgSig.drv, pk.root, sigIdx)
 	if err != nil {
 		return false, err
 	}
 	sta := SubTreeAddress{
-		Layer: sig.layer,
-		Tree:  uint64(sig.chIdx),
+		Layer: sig.msgSig.layer,
+		Tree:  uint64(sig.msgSig.chIdx),
 	}
 	addr := sta.address()
 	var otsAddr address
 	otsAddr.setSubTreeFrom(addr)
-	otsAddr.setOTS(uint32(sig.chainSeqNo))
+	otsAddr.setOTS(uint32(sig.msgSig.chainSeqNo))
 	wotsPk := pad.wotsBuf()
-	pk.ctx.wotsPkFromSigInto(pad, sig.wotsSig, hashCtRoot, pk.ph, otsAddr, wotsPk)
+	pk.ctx.wotsPkFromSigInto(pad, sig.msgSig.wotsSig, hashCtRoot, pk.ph, otsAddr, wotsPk)
 
 	// Compute the leaf from the wotsPk.
 	var lTreeAddr address
 	lTreeAddr.setSubTreeFrom(addr)
 	lTreeAddr.setType(lTreeAddrType)
-	lTreeAddr.setLTree(uint32(sig.chainSeqNo))
+	lTreeAddr.setLTree(uint32(sig.msgSig.chainSeqNo))
 	curHash := pk.ctx.lTree(pad, wotsPk, pk.ph, lTreeAddr)
 
 	if subtle.ConstantTimeCompare(curHash, authNode) != 1 {
