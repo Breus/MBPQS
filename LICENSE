@@ -21,4 +21,4 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 This software includes parts from the Go implementation of XMSS-MT: https://github.com/bwesterb/go-xmssmt
-Copyright(C) 2018 Bas Westerbaan (MIT License)
+Copyright (c) 2018 Bas Westerbaan (MIT License)
