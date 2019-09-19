@@ -1,6 +1,7 @@
 package mbpqs
 
 import (
+	"crypto/subtle"
 	"fmt"
 	"runtime"
 	"sync"
@@ -189,6 +190,7 @@ func (sk *PrivateKey) getChannelLayer(chIdx uint32) uint32 {
 
 // Retrieve the authpath, calculated from the amount of available keys.
 func (ct *chainTree) AuthPath(sig uint32) []byte {
+	fmt.Printf("Sig idx is: %d\n", sig)
 	// Authpath is alway the left node in the tree, thus index = 0.
 	if sig == ct.height-1 {
 		return ct.node(0, 1)
@@ -217,18 +219,24 @@ func (sk *PrivateKey) appendChainTree(chIdx uint32) (*GrowSignature, error) {
 
 	// Compute the new tree, and retrieve its root node.
 	pad := sk.ctx.newScratchPad()
-	ct := sk.genChainTree(pad, chIdx, ch.layers)
+	ct := sk.genChainTree(pad, chIdx, ch.layers+1)
 	ctRoot := ct.getRootNode()
+
+	growSig, err := sk.signChainTreeRoot(chIdx, ctRoot)
+	if err != nil {
+		return nil, err
+	}
+
 	// Update the channel information for an additional tree.
 	ch.layers++
 	ch.chainSeqNo = 0
-
-	// Sign the root and return it.
-	return sk.signChainTreeRoot(chIdx, ctRoot)
+	return growSig, nil
 }
 
-func (sk *PrivateKey) signChainTreeRoot(chIdx uint32, ctRoot []byte) (*GrowSignature, error) {
-	msgSig, err := sk.SignChannelMsg(chIdx, ctRoot)
+// Sign a chainTree root with a chainTree keys.
+func (sk *PrivateKey) signChainTreeRoot(chIdx uint32,
+	ctRoot []byte) (*GrowSignature, error) {
+	msgSig, err := sk.SignChannelMsg(chIdx, ctRoot, true)
 	if err != nil {
 		return nil, err
 	}
@@ -239,34 +247,37 @@ func (sk *PrivateKey) signChainTreeRoot(chIdx uint32, ctRoot []byte) (*GrowSigna
 	}, nil
 }
 
-// 	// Avoid memory allocations with pad.
-// 	pad := sk.ctx.newScratchPad()
+// Verify a chainTree root signature, part of the growsignature.
+func (pk *PublicKey) verifyChainTreeRoot(sig *MsgSignature, ctRoot,
+	authNode []byte) (bool, error) {
+	pad := pk.ctx.newScratchPad()
 
-// 	// Retrieve the chainSeqNo and channelSeqNo.
-// 	chainSeqNo, seqNo := sk.ChannelSeqNos(chIdx)
+	sigIdx := uint64(sig.chIdx)<<32 + uint64(sig.seqNo)
+	hashCtRoot, err := pk.ctx.hashMessage(pad, ctRoot, sig.drv, pk.root, sigIdx)
+	if err != nil {
+		return false, err
+	}
+	sta := SubTreeAddress{
+		Layer: sig.layer,
+		Tree:  uint64(sig.chIdx),
+	}
+	addr := sta.address()
+	var otsAddr address
+	otsAddr.setSubTreeFrom(addr)
+	otsAddr.setOTS(uint32(sig.chainSeqNo))
+	wotsPk := pad.wotsBuf()
+	pk.ctx.wotsPkFromSigInto(pad, sig.wotsSig, hashCtRoot, pk.ph, otsAddr, wotsPk)
 
-// 	// Greate a unique signatureIndex and random value R (drv).
-// 	sigIdx := uint64(chIdx)<<32 + uint64(seqNo)
-// 	drv := sk.ctx.prfUint64(pad, sigIdx, sk.skPrf)
+	// Compute the leaf from the wotsPk.
+	var lTreeAddr address
+	lTreeAddr.setSubTreeFrom(addr)
+	lTreeAddr.setType(lTreeAddrType)
+	lTreeAddr.setLTree(uint32(sig.chainSeqNo))
+	curHash := pk.ctx.lTree(pad, wotsPk, pk.ph, lTreeAddr)
 
-// 	// H_msg the message.
-// 	hashCtRt, err := sk.ctx.hashMessage(pad, ctRoot, drv, sk.root, sigIdx)
+	if subtle.ConstantTimeCompare(curHash, authNode) != 1 {
+		return false, nil
+	}
+	return true, nil
 
-// 	// Retrieve the current channelLayer
-// 	chLayer := sk.curChainLayer(chIdx)
-
-// 	// Set OTSaddr to calculate a wots sig over the message.
-// 	var otsAddr address
-// 	otsAddr.setOTS(uint32(chainSeqNo))
-// 	otsAddr.setLayer(chLayer)
-
-// 	sig := MsgSignature{
-// 		ctx:      sk.ctx,
-// 		seqNo:    ,
-// 		wotsSig:  sk.ctx.wotsSign(pad, ctRoot, sk.pubSeed, sk.skSeed, otsAddr),
-// 		rootHash: ctRoot,
-// 	}
-
-// 	return sig
-
-// }
+}
