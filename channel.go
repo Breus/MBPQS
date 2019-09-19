@@ -96,13 +96,10 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer uint32, ct
 					ourEnd := ourIdx + perBatch
 					if ourEnd > ct.height {
 						ourEnd = ct.height
-						fmt.Println(ct.height)
 					}
 					for ; ourIdx < ourEnd; ourIdx++ {
 						lTreeAddr.setLTree(ourIdx)
 						otsAddr.setOTS(ourIdx)
-						fmt.Printf("WHAT IS COMPUTED FOR LEAF %d: %d\n", ourIdx, sk.ctx.genLeaf(pad, sk.ph, lTreeAddr, otsAddr))
-
 						copy(ct.leaf(ourIdx), sk.ctx.genLeaf(
 							pad,
 							sk.ph,
@@ -124,7 +121,6 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer uint32, ct
 		nodeAddr.setTreeHeight(height - 1)
 		// Internal nodes and root node have Treeindex 0.
 		nodeAddr.setTreeIndex(0)
-		fmt.Printf("Node address in tree gen %d at tree height %d\n", nodeAddr, height)
 		sk.ctx.hInto(pad, ct.node(height-1, 0), ct.node(height-1, 1), sk.ph, nodeAddr, ct.node(height, 0))
 	}
 }
@@ -169,34 +165,26 @@ func (ctx *Context) deriveChainTreeHeight(chainLayer uint32) uint32 {
 	return ctx.params.chanH + ctx.params.ge*(chainLayer-1)
 }
 
+// ChannelSeqNo retrieves the current seqNo and updates it
+func (sk *PrivateKey) ChannelSeqNo(chIdx uint32) SignatureSeqNo {
+	ch := sk.getChannel(chIdx)
+	ch.seqNo++
+	return ch.seqNo - 1
+}
+
 // ChannelSeqNos retrieves the current chainSeqNo and the current channelSeqNo.
 func (sk *PrivateKey) ChannelSeqNos(chIdx uint32) (uint32, SignatureSeqNo) {
 	ch := sk.getChannel(chIdx)
 	ch.mux.Lock()
 	// Unlock the lock when the function is finished.
 	defer ch.mux.Unlock()
-	fmt.Printf("Channel layers: %d\n", ch.layers)
-	if sk.ctx.deriveChainTreeHeight(ch.layers) == uint32(ch.chainSeqNo) {
-		fmt.Println("THIS WILL CRASH TEST")
-		// A new chainTree needs to be appended.
-		// TODO:
-	}
-	ch.seqNo++
 	ch.chainSeqNo++
-	return ch.chainSeqNo - 1, ch.seqNo - 1
+	return ch.chainSeqNo - 1, sk.ChannelSeqNo(chIdx)
 }
 
-// Returns the current chain layer.
-func (sk *PrivateKey) curChainLayer(chIdx uint32) uint32 {
-	return sk.getChannel(1).layers
-}
-
-// Adds a chainTree ct to the channel and update the corersponding channel fields.
-func (ch *Channel) addChainTree() {
-	ch.mux.Lock()
-	ch.layers++
-	ch.chainSeqNo = 0
-	ch.mux.Unlock()
+// Returns the layer of the current chain in the channel.
+func (sk *PrivateKey) getChannelLayer(chIdx uint32) uint32 {
+	return sk.getChannel(chIdx).layers
 }
 
 // Retrieve the authpath, calculated from the amount of available keys.
@@ -221,3 +209,64 @@ func (ctx *Context) getNodeHeight(chainLayer, chainSeqNo uint32) uint32 {
 func (sk *PrivateKey) getChannel(chIdx uint32) *Channel {
 	return sk.Channels[chIdx-1]
 }
+
+// AppendChainTree adds an additional chaintree to the channel, and signs it.
+func (sk *PrivateKey) appendChainTree(chIdx uint32) (*GrowSignature, error) {
+	// Let's get a pointer to the channel.
+	ch := sk.getChannel(chIdx)
+
+	// Compute the new tree, and retrieve its root node.
+	pad := sk.ctx.newScratchPad()
+	ct := sk.genChainTree(pad, chIdx, ch.layers)
+	ctRoot := ct.getRootNode()
+	// Update the channel information for an additional tree.
+	ch.layers++
+	ch.chainSeqNo = 0
+
+	// Sign the root and return it.
+	return sk.signChainTreeRoot(chIdx, ctRoot)
+}
+
+func (sk *PrivateKey) signChainTreeRoot(chIdx uint32, ctRoot []byte) (*GrowSignature, error) {
+	msgSig, err := sk.SignChannelMsg(chIdx, ctRoot)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GrowSignature{
+		msgSig:   msgSig,
+		rootHash: ctRoot,
+	}, nil
+}
+
+// 	// Avoid memory allocations with pad.
+// 	pad := sk.ctx.newScratchPad()
+
+// 	// Retrieve the chainSeqNo and channelSeqNo.
+// 	chainSeqNo, seqNo := sk.ChannelSeqNos(chIdx)
+
+// 	// Greate a unique signatureIndex and random value R (drv).
+// 	sigIdx := uint64(chIdx)<<32 + uint64(seqNo)
+// 	drv := sk.ctx.prfUint64(pad, sigIdx, sk.skPrf)
+
+// 	// H_msg the message.
+// 	hashCtRt, err := sk.ctx.hashMessage(pad, ctRoot, drv, sk.root, sigIdx)
+
+// 	// Retrieve the current channelLayer
+// 	chLayer := sk.curChainLayer(chIdx)
+
+// 	// Set OTSaddr to calculate a wots sig over the message.
+// 	var otsAddr address
+// 	otsAddr.setOTS(uint32(chainSeqNo))
+// 	otsAddr.setLayer(chLayer)
+
+// 	sig := MsgSignature{
+// 		ctx:      sk.ctx,
+// 		seqNo:    ,
+// 		wotsSig:  sk.ctx.wotsSign(pad, ctRoot, sk.pubSeed, sk.skSeed, otsAddr),
+// 		rootHash: ctRoot,
+// 	}
+
+// 	return sig
+
+// }

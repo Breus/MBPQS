@@ -6,30 +6,36 @@ import (
 	"sync"
 )
 
-// SignatureSeqNo is the sequence number of signatures and wotsKeys.
-// Should start at 0 to compute AuthPath and is synced with leaf index.
+// SignatureSeqNo is the sequence number (index) of signatures and wotsKeys in channels and the root tree.
 type SignatureSeqNo uint32
 
-// RootSignature holds a signature on a channel by the rootTree.b
+// RootSignature holds a signature on a channel by a rootTree leaf.
 type RootSignature struct {
 	ctx      *Context       // Defines the MBPQS instance which was used to create the Signature.
-	seqNo    SignatureSeqNo // sequence number of this signature so you know which index key to verify.
-	drv      []byte         // digest randomized value (r).
-	wotsSig  []byte         // the WOTS signature over the channel root.
-	authPath []byte         // the authentication path for this signature to the rootTree root node.
-	rootHash []byte         // channelRoot which is signed.
+	seqNo    SignatureSeqNo // Sequence number of this signature so you know which index key to verify.
+	drv      []byte         // Digest randomized value (r).
+	wotsSig  []byte         // The WOTS signature over the channel root.
+	authPath []byte         // The authentication path for this signature to the rootTree root node.
+	rootHash []byte         // ChannelRoot which is signed.
 }
 
-// ChannelSignature holds a signature on a message in a channel.
-type ChannelSignature struct {
-	ctx        *Context       // defines the mbpqs instance which was used to create the signature.
-	chainSeqNo uint32         // sequence number of this signature in the chain tree.
-	seqNo      SignatureSeqNo // sequence number of this signature in the channel.
-	drv        []byte         // digest randomized value (r).
-	wotsSig    []byte         // the WOTS signature over the channel message.
-	authPath   []byte         // autpath to the rootSignature.
-	chIdx      uint32         // in which channel the signature
-	layer      uint32         // from which chainTree layer the key comes.
+// MsgSignature holds a signature on a message in a channel.
+type MsgSignature struct {
+	ctx        *Context       // Context defines the mbpqs instance which was used to create the signature.
+	seqNo      SignatureSeqNo // Sequence number of this signature in the channel.
+	drv        []byte         // Digest randomized value (r).
+	wotsSig    []byte         // The WOTS signature over the channel message.
+	authPath   []byte         // Autpath to the rootSignature.
+	chainSeqNo uint32         // Sequence number of this signature in the used chain tree.
+	chIdx      uint32         // In which channel the signature.
+	layer      uint32         // From which chainTree layer the key comes.
+	rootSig    *RootSignature // In case it is the first signature in a chain tree, it includes a pointer to the root signature.
+}
+
+// GrowSignature is a signature of the last OTS key in a chain tree over the next chain tree.
+type GrowSignature struct {
+	msgSig   *MsgSignature
+	rootHash []byte
 }
 
 // Channel is a key channel within the MBPQS tree, are stacked chain trees with the same Tree address.
@@ -43,14 +49,11 @@ type Channel struct {
 
 // PrivateKey is a MBPQS private key */
 type PrivateKey struct {
-	seqNo SignatureSeqNo // The seqNo of the first unused signing key.
+	seqNo    SignatureSeqNo // The seqNo of the first unused signing key in the root Tree.
+	Channels []*Channel     // Channels in the privatekey.
 	/* n-byte skSeed is used to pseudorandomly generate wots channelkeys seeds.
 	 * S in RFC8931, SK_1 and S in XMSS-T paper.
 	 */
-
-	// Channels in the privatekey
-	Channels []*Channel
-
 	skSeed []byte
 	/* n-byte skPrf is used to randomize the message hash when signing.
 	 * SK_PRF in RFC8931, SK_2 in XMSS-T paper.
@@ -212,14 +215,23 @@ func (sk *PrivateKey) GetSeqNo() (SignatureSeqNo, error) {
 	defer sk.mux.Unlock()
 
 	if uint64(sk.seqNo) == (1<<sk.ctx.params.rootH - 1) {
-		return 0, fmt.Errorf("no unused signing keys left")
+		return 0, fmt.Errorf("no unused channel signing keys left")
 	}
 	sk.seqNo++
 	return sk.seqNo - 1, nil
 }
 
-// SignChannelMsg signs the message 'msg' in the channel with
-func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*ChannelSignature, error) {
+// GrowChannel sign the message 'msg' in the channel and checks for growth.
+func (sk *PrivateKey) GrowChannel(chIdx uint32) (*GrowSignature, error) {
+	ch := sk.getChannel(chIdx)
+	if !(sk.ctx.deriveChainTreeHeight(ch.layers) == uint32(ch.chainSeqNo-1)) {
+		return nil, fmt.Errorf("last chainTree hasn't used its full capacity yet")
+	}
+	return sk.appendChainTree(chIdx)
+}
+
+// SignChannelMsg signs the message 'msg' in the channel with index chIdx.
+func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*MsgSignature, error) {
 	// Returns an error if the channel does not exist.
 	if chIdx >= uint32(len(sk.Channels)+1) {
 		return nil, fmt.Errorf("channel does not exist, please create it first")
@@ -228,47 +240,53 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*ChannelSignatur
 	pad := sk.ctx.newScratchPad()
 	// Retrieve and update chainSeqNo and channel seqNo
 	chainSeqNo, seqNo := sk.ChannelSeqNos(chIdx)
-	// 64-bit drvSeed value to avoid collisions with seqNo's in the root tree!
+
+	sig := &MsgSignature{
+		ctx:        sk.ctx,
+		chainSeqNo: chainSeqNo,
+		seqNo:      seqNo,
+		chIdx:      chIdx,
+	}
+
+	// Check if the chainSeqNo is the last of the chain.
+	ch := sk.getChannel(chIdx)
+	if sk.ctx.deriveChainTreeHeight(ch.layers) == uint32(ch.chainSeqNo-1) {
+		return nil, fmt.Errorf("please grow the channel before signing new messages in it")
+	}
+
+	// 64-bit sigIdx, seed value for drv to avoid collisions with seqNo's in the root tree!
 	// This value includes the channelID in the first 32 bits of the seed, and the seqNo in the last 32 bits.
 	sigIdx := uint64(chIdx)<<32 + uint64(seqNo)
 
 	// Compute drv (R) pseudorandomly from the seed.
 	drv := sk.ctx.prfUint64(pad, sigIdx, sk.skPrf)
 
+	chLayer := sk.getChannelLayer(chIdx)
 	// Compute the chainTree.
-	ct := sk.genChainTree(pad, chIdx, sk.curChainLayer(chIdx))
+	ct := sk.genChainTree(pad, chIdx, chLayer)
 
-	// Set OTSaddr to calculate the Wotsisng over the message.
-	chLayer := sk.curChainLayer(chIdx)
+	// Set OTSaddr to calculate the Wots sig over the message.
+
 	var otsAddr address
 	otsAddr.setOTS(uint32(chainSeqNo))
 	otsAddr.setLayer(chLayer)
 	otsAddr.setTree(uint64(chIdx))
 
 	// Select the authentication node in the tree.
-	fmt.Printf("Input to authpath function is: %d\n", uint32(chainSeqNo))
 	authPathNode := ct.AuthPath(uint32(chainSeqNo))
 
 	hashMsg, err := sk.ctx.hashMessage(pad, msg, drv, sk.root, sigIdx)
 	if err != nil {
 		return nil, err
 	}
-	sig := ChannelSignature{
-		ctx:        sk.ctx,
-		chainSeqNo: chainSeqNo,
-		seqNo:      seqNo,
-		drv:        drv,
-		wotsSig:    sk.ctx.wotsSign(pad, hashMsg, sk.pubSeed, sk.skSeed, otsAddr),
-		authPath:   authPathNode,
-		chIdx:      chIdx,
-		layer:      chLayer,
-	}
-	fmt.Printf("Tree: %d", ct.buf)
-	fmt.Printf("Authnode in signing :%d\n", authPathNode)
-	fmt.Printf("Input to leaf in signing: %d\n", chainSeqNo)
-	fmt.Printf("Leaf in signing: %d\n", ct.leaf(chainSeqNo))
 
-	return &sig, nil
+	// These fields can only be set after check for required rootSignature is made.
+	sig.layer = chLayer
+	sig.drv = drv
+	sig.wotsSig = sk.ctx.wotsSign(pad, hashMsg, sk.pubSeed, sk.skSeed, otsAddr)
+	sig.authPath = authPathNode
+
+	return sig, nil
 }
 
 // Create a new channel, returns its index and the signature of its first chainTreeRoot.
@@ -282,8 +300,11 @@ func (sk *PrivateKey) createChannel() (uint32, *RootSignature, error) {
 	// Appending the created channel to the channellist in the PK.
 	sk.Channels = append(sk.Channels, ch)
 	// Update the channel.
-	ch.addChainTree()
-	fmt.Printf("LAYERS BABY: %d\n", sk.getChannel(1).layers)
+	ch.mux.Lock()
+	ch.layers++
+	ch.chainSeqNo = 0
+	ch.mux.Unlock()
+
 	// Create the first chainTree for the channel
 	ct := sk.genChainTree(pad, chIdx, 1)
 	// Get the root, and sign it.
@@ -298,7 +319,7 @@ func (sk *PrivateKey) createChannel() (uint32, *RootSignature, error) {
 }
 
 // VerifyChannelMsg return true if the signature/message pair is valid.
-func (pk *PublicKey) VerifyChannelMsg(sig *ChannelSignature, msg, prevAuthPath []byte) (bool, error) {
+func (pk *PublicKey) VerifyChannelMsg(sig *MsgSignature, msg, authNode []byte) (bool, error) {
 	pad := pk.ctx.newScratchPad()
 
 	// 64-bit drvSeed value to avoid collisions with seqNo's in the root tree!
@@ -331,20 +352,20 @@ func (pk *PublicKey) VerifyChannelMsg(sig *ChannelSignature, msg, prevAuthPath [
 	lTreeAddr.setType(lTreeAddrType)
 	lTreeAddr.setLTree(uint32(sig.chainSeqNo))
 	curHash := pk.ctx.lTree(pad, wotsPk, pk.ph, lTreeAddr)
-	fmt.Printf("Current leaf in verification: %d\n", curHash)
+
 	// Now hash the leaf with the authentication path.
 	var nodeAddr address
 	nodeAddr.setSubTreeFrom(addr)
 	nodeAddr.setType(treeAddrType)
-	fmt.Println(pk.ctx.getNodeHeight(sig.layer, sig.chainSeqNo))
 	nodeAddr.setTreeHeight(pk.ctx.getNodeHeight(sig.layer, sig.chainSeqNo))
 	nodeAddr.setTreeIndex(0)
-	fmt.Printf("Node address in verification %d", nodeAddr)
 
 	pk.ctx.hInto(pad, sig.authPath, curHash, pk.ph, nodeAddr, curHash)
 
 	// Compare the computed value with the previous authentication path node.
-	if subtle.ConstantTimeCompare(curHash, prevAuthPath) != 1 {
+	fmt.Printf("Current hash: %x\n", curHash)
+	fmt.Printf("Authnode: %x\n", authNode)
+	if subtle.ConstantTimeCompare(curHash, authNode) != 1 {
 		return false, nil
 	}
 	return true, nil
