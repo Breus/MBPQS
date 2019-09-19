@@ -141,3 +141,14 @@ func (ctx *Context) wotsPkFromSig(pad scratchPad, sig, msg []byte,
 	ctx.wotsPkFromSigInto(pad, sig, msg, ph, addr, pk)
 	return pk
 }
+
+// This method exists only for testing purposes!
+func (ctx *Context) getWotsSeed(pad scratchPad, ph precomputedHashes,
+	addr address) []byte {
+	addr.setChain(0)
+	addr.setHash(0)
+	addr.setKeyAndMask(0)
+	ret := make([]byte, ctx.params.n)
+	ph.prfAddrSkSeedInto(pad, addr, ret)
+	return ret
+}

@@ -94,7 +94,7 @@ func InitParam(n, rtH, chanH, ge uint32, w uint16) *Params {
 // GenerateKeyPair generates a new MBPQS keypair for given parameters.
 func GenerateKeyPair(p *Params) (*PrivateKey, *PublicKey, error) {
 	// Create new context including given parameters.
-	ctx, err := newContext(*p)
+	ctx, err := newContext(p)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -214,7 +214,7 @@ func (sk *PrivateKey) GetSeqNo() (SignatureSeqNo, error) {
 	// Unlock the lock when the funtion is finished.
 	defer sk.mux.Unlock()
 	fmt.Println(sk.seqNo)
-	// Check if there are still root keys left to sign channels with.
+	// Check if there are still root keys left to sign channels.
 	if uint64(sk.seqNo) >= (1 << sk.ctx.params.rootH) {
 		return 0, fmt.Errorf("no unused channel signing keys left")
 	}

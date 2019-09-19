@@ -10,12 +10,12 @@ type Params struct {
 
 }
 
-var paramSets = []Params{
-	Params{n: 32, rootH: 10, w: 16, ge: 1, chanH: 1},
-	Params{n: 32, rootH: 16, w: 16, ge: 1, chanH: 1},
-	Params{n: 32, rootH: 20, w: 16, ge: 1, chanH: 1},
-	Params{n: 64, rootH: 10, w: 16, ge: 1, chanH: 1},
-	Params{n: 64, rootH: 16, w: 16, ge: 1, chanH: 1},
+var paramSets = []*Params{
+	&Params{n: 32, rootH: 10, w: 16, ge: 1, chanH: 1},
+	&Params{n: 32, rootH: 16, w: 16, ge: 1, chanH: 1},
+	&Params{n: 32, rootH: 20, w: 16, ge: 1, chanH: 1},
+	&Params{n: 64, rootH: 10, w: 16, ge: 1, chanH: 1},
+	&Params{n: 64, rootH: 16, w: 16, ge: 1, chanH: 1},
 }
 
 // NewContextFromOid returns a new context for the given Root tree.

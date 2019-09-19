@@ -12,7 +12,7 @@ func TestSignAndVerify(t *testing.T) {
 	}
 
 	// Check if we can sign and verify 2^rootH times.
-	for i := 0; i < 1<<params.rootH-1; i++ {
+	for i := 0; i < 1<<params.rootH; i++ {
 		msg := []byte("Hello message" + string(i))
 		sign, err := sk.SignChannelRoot(msg)
 		if err != nil {
@@ -216,17 +216,24 @@ func TestChannelSigningGrowing(t *testing.T) {
 	}
 }
 
-// Testing multiple channel creations.
+// Testing multiple channel creations and verifications.
 func TestChannelCreation(t *testing.T) {
 	var rootH uint32 = 5
-	sk, _, err := GenKeyPair(32, rootH, 6, 10, 4)
+	sk, pk, err := GenKeyPair(32, rootH, 6, 10, 256)
 	if err != nil {
 		t.Fatalf("KeyGen crashed with error: %s\n", err)
 	}
 	for i := 0; i < (1 << rootH); i++ {
-		chIdx, _, err := sk.AddChannel()
+		chIdx, rootSig, err := sk.AddChannel()
 		if err != nil {
 			t.Fatalf("Channel %d in loop %d creation failed with error: %s\n", chIdx, i, err)
+		}
+		accept, err := pk.VerifyChannelRoot(rootSig, rootSig.rootHash)
+		if err != nil {
+			t.Fatalf("Channel %d verification did fail with error %s\n", chIdx, err)
+		}
+		if !accept {
+			t.Fatalf("Correct channelRoot sig did not verify for channel %d\n", chIdx)
 		}
 	}
 }

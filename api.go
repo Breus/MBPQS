@@ -11,6 +11,11 @@ func (sk *PrivateKey) AddChannel() (uint32, *RootSignature, error) {
 	return sk.createChannel()
 }
 
+// VerifyChannel verifies that a channel is signed by a certain PublicKey.
+func (pk *PublicKey) VerifyChannel(rt *RootSignature, channelRoot []byte) (bool, error) {
+	return pk.VerifyChannelRoot(rt, channelRoot)
+}
+
 // SignMsg returns the signature over the message in channel with index chIdx.
 func (sk *PrivateKey) SignMsg(chIdx uint32, msg []byte) (*MsgSignature, error) {
 	return sk.SignChannelMsg(chIdx, msg, false)

@@ -6,20 +6,20 @@ import (
 
 // Context including a full MBPQS instance.
 type Context struct {
-	params       Params // MBPQS parameters
-	wotsLogW     uint8  // logarithm of the Winternitz parameter
-	wotsLen1     uint32 // WOTS+ chains for message
-	wotsLen2     uint32 // WOTS+ chains for checksum
-	wotsLen      uint32 // total number of WOTS+ chains
-	wotsSigBytes uint32 // length of WOTS+ signature
-	indexBytes   uint32 // size of an index
-	sigBytes     uint32 // size of signature
+	params       *Params // MBPQS parameters
+	wotsLogW     uint8   // logarithm of the Winternitz parameter
+	wotsLen1     uint32  // WOTS+ chains for message
+	wotsLen2     uint32  // WOTS+ chains for checksum
+	wotsLen      uint32  // total number of WOTS+ chains
+	wotsSigBytes uint32  // length of WOTS+ signature
+	indexBytes   uint32  // size of an index
+	sigBytes     uint32  // size of signature
 	// The amount of threads to use in the MBPQS scheme.
 	threads int
 }
 
 // Allocates memory for a Context and sets the given parameters in it.
-func newContext(p Params) (ctx *Context, err error) {
+func newContext(p *Params) (ctx *Context, err error) {
 	ctx = new(Context)
 	if p.n != 32 && p.n != 64 {
 		return nil, fmt.Errorf("Only n=32 and n = 64 are supported for now (it was %d)", p.n)
@@ -27,8 +27,8 @@ func newContext(p Params) (ctx *Context, err error) {
 	if p.w != 4 && p.w != 16 && p.w != 256 {
 		return nil, fmt.Errorf("w = {4,16,256} are suported, no other values (w was %d)", p.w)
 	}
-	if p.rootH > 20 {
-		return nil, fmt.Errorf("Root tree may at most be ")
+	if p.rootH > 32 {
+		return nil, fmt.Errorf("the maxmimum root tree height is 32")
 	}
 	ctx.params = p
 	ctx.indexBytes = 4
