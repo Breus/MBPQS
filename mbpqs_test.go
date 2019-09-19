@@ -56,7 +56,7 @@ func TestNonExistingChannelSigning(t *testing.T) {
 	if err != nil {
 		t.Fatalf("keygeneration gave error %s", err)
 	}
-	_, err = sk.SignChannelMsg(0, []byte("Hello!"))
+	_, err = sk.SignMsg(1, []byte("Hello!"))
 	if err == nil {
 		t.Fatal("signing in a non-existant channel did not give an error")
 	}
@@ -64,7 +64,7 @@ func TestNonExistingChannelSigning(t *testing.T) {
 
 func TestChannelSigningEnoughSigsInChain(t *testing.T) {
 	// Create MBPQS keypair.
-	sk, pk, err := GenerateKeyPair(&Params{n: 32, w: 4, ge: 1, rootH: 3, chanH: 4})
+	sk, pk, err := GenerateKeyPair(&Params{n: 32, w: 4, ge: 1, rootH: 3, chanH: 10})
 	if err != nil {
 		t.Fatalf("keygeneration gave error %s", err)
 	}
@@ -77,7 +77,7 @@ func TestChannelSigningEnoughSigsInChain(t *testing.T) {
 
 	// Sign the message msg in this channel.
 	msg := []byte("This is the message to be signed")
-	chSig, err := sk.SignChannelMsg(chIdx, msg)
+	chSig, err := sk.SignMsg(chIdx, msg)
 	if err != nil {
 		t.Fatalf("signing in channel failed with error %s", err)
 	}
@@ -93,7 +93,7 @@ func TestChannelSigningEnoughSigsInChain(t *testing.T) {
 
 	// Sign the message msg3 in this channel.
 	msg3 := []byte("This is the message to be signed")
-	chSig2, err := sk.SignChannelMsg(chIdx, msg3)
+	chSig2, err := sk.SignMsg(chIdx, msg3)
 	if err != nil {
 		t.Fatalf("signing in channel failed with error %s", err)
 	}
@@ -108,7 +108,7 @@ func TestChannelSigningEnoughSigsInChain(t *testing.T) {
 
 	// Sign the message msg4 in this channel.
 	msg4 := []byte("This is the message to be signed")
-	chSig3, err := sk.SignChannelMsg(chIdx, msg4)
+	chSig3, err := sk.SignMsg(chIdx, msg4)
 	if err != nil {
 		t.Fatalf("signing in channel failed with error %s", err)
 	}
@@ -124,26 +124,94 @@ func TestChannelSigningEnoughSigsInChain(t *testing.T) {
 }
 
 func TestChannelSigningGrowing(t *testing.T) {
-	var chanH uint32 = 3
+	var chanH uint32 = 4
 	// Creat MBPQS keypair with low amount of chanH.
-	sk, _, err := GenerateKeyPair(&Params{n: 32, w: 4, ge: 1, rootH: 3, chanH: chanH})
+	sk, pk, err := GenerateKeyPair(&Params{n: 32, w: 4, ge: 1, rootH: 3, chanH: chanH})
 	if err != nil {
 		t.Fatalf("keygeneration gave error %s", err)
 	}
 
 	// Create a channel.
-	chIdx, _, err := sk.createChannel()
+	chIdx, chRtSig, err := sk.createChannel()
 	if err != nil {
 		t.Fatalf("channel creation failed with error %s", err)
 	}
 
-	for i := 0; i < int(chanH); i++ {
-		msg := []byte("Message" + string(i))
-		_, err := sk.SignChannelMsg(chIdx, msg)
-		if err != nil {
-			t.Errorf("Signing in channel failed with error %s", err)
-		}
+	// Sign the message msg in this channel.
+	msg := []byte("This is the message to be signed")
+	chSig, err := sk.SignMsg(chIdx, msg)
+	if err != nil {
+		t.Fatalf("signing in channel failed with error %s", err)
 	}
-	sk.GrowChannel(chIdx)
 
+	// Verify the channel message.
+	accept, err := pk.VerifyChannelMsg(chSig, msg, chRtSig.rootHash)
+	if err != nil {
+		t.Fatalf("verification of right message failed with errror %s", err)
+	}
+	if !accept {
+		t.Fatalf("verification of correct message/signature pair not accepted")
+	}
+
+	// Sign the message msg3 in this channel.
+	msg2 := []byte("This is the message to be signed")
+	chSig2, err := sk.SignMsg(chIdx, msg2)
+	if err != nil {
+		t.Fatalf("signing in channel failed with error %s", err)
+	}
+
+	accept2, err := pk.VerifyChannelMsg(chSig2, msg2, chSig.authPath)
+	if err != nil {
+		t.Fatalf("verification of right message failed with errror %s", err)
+	}
+	if !accept2 {
+		t.Fatalf("verification of correct message/signature pair not accepted")
+	}
+
+	// Sign the message msg4 in this channel.
+	msg3 := []byte("This is the message to be signed")
+	chSig3, err := sk.SignMsg(chIdx, msg3)
+	if err != nil {
+		t.Fatalf("signing in channel failed with error %s", err)
+	}
+
+	// Verify a correct msg/signature pair.
+	accept3, err := pk.VerifyChannelMsg(chSig3, msg3, chSig2.authPath)
+	if err != nil {
+		t.Fatalf("verification of right message failed with errror %s", err)
+	}
+	if !accept3 {
+		t.Fatalf("verification of correct message/signature pair not accepted")
+	}
+
+	// Grow the channel, add another chainTree.
+	growSig, err := sk.GrowChannel(chIdx)
+	if err != nil {
+		t.Fatalf("GrowSig creation failed with error %s", err)
+	}
+
+	// Verify the growSignature.
+	accept4, err := pk.verifyChainTreeRoot(growSig.msgSig, growSig.rootHash, chSig3.authPath)
+	if err != nil {
+		t.Fatalf("Verification of growth signature failed with error %s", err)
+	}
+	if !accept4 {
+		t.Fatalf("The growth signature was not accepted.")
+	}
+
+	// Sign the next message in the channel.
+	msg5 := []byte("This is the message to be signed")
+	chSig5, err := sk.SignMsg(chIdx, msg5)
+	if err != nil {
+		t.Fatalf("signing in channel failed with error %s", err)
+	}
+
+	// Verify the channel in the message.
+	accept5, err := pk.VerifyChannelMsg(chSig5, msg5, growSig.rootHash)
+	if err != nil {
+		t.Fatalf("verification of right message failed with errror %s", err)
+	}
+	if !accept5 {
+		t.Fatalf("verification of correct message/signature pair not accepted")
+	}
 }

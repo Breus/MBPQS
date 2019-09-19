@@ -224,35 +224,37 @@ func (sk *PrivateKey) GetSeqNo() (SignatureSeqNo, error) {
 // GrowChannel sign the message 'msg' in the channel and checks for growth.
 func (sk *PrivateKey) GrowChannel(chIdx uint32) (*GrowSignature, error) {
 	ch := sk.getChannel(chIdx)
-	if !(sk.ctx.deriveChainTreeHeight(ch.layers) == uint32(ch.chainSeqNo-1)) {
+	if !(sk.ctx.deriveChainTreeHeight(ch.layers)-1 == uint32(ch.chainSeqNo)) {
+		fmt.Printf("Tree height: %d\n", sk.ctx.deriveChainTreeHeight(ch.layers))
+		fmt.Printf("ChainSeqNo: %d\n", uint32(ch.chainSeqNo))
+
 		return nil, fmt.Errorf("last chainTree hasn't used its full capacity yet")
 	}
 	return sk.appendChainTree(chIdx)
 }
 
 // SignChannelMsg signs the message 'msg' in the channel with index chIdx.
-func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*MsgSignature, error) {
+// Be cautious: this
+func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte, lastOne bool) (*MsgSignature, error) {
+	// Channels start from index 1.
+	if chIdx == 0 {
+		return nil, fmt.Errorf("channels start at index 1")
+	}
 	// Returns an error if the channel does not exist.
 	if chIdx >= uint32(len(sk.Channels)+1) {
 		return nil, fmt.Errorf("channel does not exist, please create it first")
 	}
+	ch := sk.getChannel(chIdx)
+	// If the function call does not have the 'lastOne' flag, check if it is the last key
+	// in the chain, so that it will not be used to sign a message instead of the next chain.
+	if !lastOne && sk.ctx.deriveChainTreeHeight(ch.layers)-1 == uint32(ch.chainSeqNo) {
+		return nil, fmt.Errorf("please grow the channel before signing new messages in it")
+	}
+
 	// Create scratchpad to avoid memory allocations.
 	pad := sk.ctx.newScratchPad()
 	// Retrieve and update chainSeqNo and channel seqNo
 	chainSeqNo, seqNo := sk.ChannelSeqNos(chIdx)
-
-	sig := &MsgSignature{
-		ctx:        sk.ctx,
-		chainSeqNo: chainSeqNo,
-		seqNo:      seqNo,
-		chIdx:      chIdx,
-	}
-
-	// Check if the chainSeqNo is the last of the chain.
-	ch := sk.getChannel(chIdx)
-	if sk.ctx.deriveChainTreeHeight(ch.layers) == uint32(ch.chainSeqNo-1) {
-		return nil, fmt.Errorf("please grow the channel before signing new messages in it")
-	}
 
 	// 64-bit sigIdx, seed value for drv to avoid collisions with seqNo's in the root tree!
 	// This value includes the channelID in the first 32 bits of the seed, and the seqNo in the last 32 bits.
@@ -281,10 +283,16 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*MsgSignature, e
 	}
 
 	// These fields can only be set after check for required rootSignature is made.
-	sig.layer = chLayer
-	sig.drv = drv
-	sig.wotsSig = sk.ctx.wotsSign(pad, hashMsg, sk.pubSeed, sk.skSeed, otsAddr)
-	sig.authPath = authPathNode
+	sig := &MsgSignature{
+		ctx:        sk.ctx,
+		chainSeqNo: chainSeqNo,
+		seqNo:      seqNo,
+		chIdx:      chIdx,
+		layer:      chLayer,
+		drv:        drv,
+		wotsSig:    sk.ctx.wotsSign(pad, hashMsg, sk.pubSeed, sk.skSeed, otsAddr),
+		authPath:   authPathNode,
+	}
 
 	return sig, nil
 }
@@ -352,7 +360,7 @@ func (pk *PublicKey) VerifyChannelMsg(sig *MsgSignature, msg, authNode []byte) (
 	lTreeAddr.setType(lTreeAddrType)
 	lTreeAddr.setLTree(uint32(sig.chainSeqNo))
 	curHash := pk.ctx.lTree(pad, wotsPk, pk.ph, lTreeAddr)
-
+	fmt.Printf("Leaf in verification, must be authpath for next: %x\n", curHash)
 	// Now hash the leaf with the authentication path.
 	var nodeAddr address
 	nodeAddr.setSubTreeFrom(addr)

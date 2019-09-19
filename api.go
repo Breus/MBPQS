@@ -13,7 +13,7 @@ func (sk *PrivateKey) AddChannel() (uint32, *RootSignature, error) {
 
 // SignMsg returns the signature over the message in channel with index chIdx.
 func (sk *PrivateKey) SignMsg(chIdx uint32, msg []byte) (*MsgSignature, error) {
-	return sk.SignChannelMsg(chIdx, msg)
+	return sk.SignChannelMsg(chIdx, msg, false)
 }
 
 // VerifyMsg returns if the signature/message pair verifies to the previous authNode.
