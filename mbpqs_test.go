@@ -215,3 +215,18 @@ func TestChannelSigningGrowing(t *testing.T) {
 		t.Fatalf("verification of correct message/signature pair not accepted")
 	}
 }
+
+// Testing multiple channel creations.
+func TestChannelCreation(t *testing.T) {
+	var rootH uint32 = 5
+	sk, _, err := GenKeyPair(32, rootH, 6, 10, 4)
+	if err != nil {
+		t.Fatalf("KeyGen crashed with error: %s\n", err)
+	}
+	for i := 0; i < (1 << rootH); i++ {
+		chIdx, _, err := sk.AddChannel()
+		if err != nil {
+			t.Fatalf("Channel %d in loop %d creation failed with error: %s\n", chIdx, i, err)
+		}
+	}
+}

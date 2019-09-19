@@ -213,8 +213,9 @@ func (sk *PrivateKey) GetSeqNo() (SignatureSeqNo, error) {
 	sk.mux.Lock()
 	// Unlock the lock when the funtion is finished.
 	defer sk.mux.Unlock()
-
-	if uint64(sk.seqNo) == (1<<sk.ctx.params.rootH - 1) {
+	fmt.Println(sk.seqNo)
+	// Check if there are still root keys left to sign channels with.
+	if uint64(sk.seqNo) >= (1 << sk.ctx.params.rootH) {
 		return 0, fmt.Errorf("no unused channel signing keys left")
 	}
 	sk.seqNo++
