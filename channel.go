@@ -293,3 +293,8 @@ func (pk *PublicKey) verifyChainTreeRoot(sig *GrowSignature,
 	return true, nil
 
 }
+
+// Retrieve the growSig root hash from the signature.
+func (gs *GrowSignature) getRootField() []byte {
+	return gs.rootHash
+}

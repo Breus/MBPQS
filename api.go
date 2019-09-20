@@ -12,8 +12,8 @@ func (sk *PrivateKey) AddChannel() (uint32, *RootSignature, error) {
 }
 
 // VerifyChannel verifies that a channel is signed by a certain PublicKey.
-func (pk *PublicKey) VerifyChannel(rt *RootSignature, channelRoot []byte) (bool, error) {
-	return pk.VerifyChannelRoot(rt, channelRoot)
+func (pk *PublicKey) VerifyChannel(rt *RootSignature) (bool, error) {
+	return pk.VerifyChannelRoot(rt, rt.rootHash)
 }
 
 // GrowChannel adds a chainTree to the channel.
