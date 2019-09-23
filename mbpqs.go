@@ -6,6 +6,12 @@ import (
 	"sync"
 )
 
+// Signature is the interface type for RootSignature, MsgSignature, and GrowSignature.
+type Signature interface {
+	GetAuthPath() []byte
+	GetRootField() []byte
+}
+
 // SignatureSeqNo is the sequence number (index) of signatures and wotsKeys in channels and the root tree.
 type SignatureSeqNo uint32
 

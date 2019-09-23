@@ -100,3 +100,11 @@ func TestMultiChannels(t *testing.T) {
 		}
 	}
 }
+
+// TestSignStoreVerify signs multiple messages in multiple channels.
+// Subsequently, the signatures are stored on the 'blockchain'.
+// Then, we test if a verifier can indeed verify the signatures in the
+// channel it has access to.
+func TestSignStoreVerify(t *testing.T) {
+
+}
