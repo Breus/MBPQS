@@ -1,8 +1,8 @@
 package mbpqs
 
 // GenKeyPair generates a keypair for the given parameters.
-func GenKeyPair(n, rtH, chanH, ge uint32, w uint16) (*PrivateKey, *PublicKey, error) {
-	return GenerateKeyPair(InitParam(n, rtH, chanH, ge, w))
+func GenKeyPair(n, rtH, chanH, gf uint32, w uint16) (*PrivateKey, *PublicKey, error) {
+	return GenerateKeyPair(InitParam(n, rtH, chanH, gf, w))
 }
 
 // AddChannel returns the ID of the added channel, and the signature of

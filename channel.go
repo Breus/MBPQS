@@ -163,7 +163,7 @@ func chainTreeFromBuf(buf []byte, height, n uint32) chainTree {
 
 // Returns the height of a chain tree at layer chainLayer.
 func (ctx *Context) deriveChainTreeHeight(chainLayer uint32) uint32 {
-	return ctx.params.chanH + ctx.params.ge*(chainLayer-1)
+	return ctx.params.chanH + ctx.params.gf*(chainLayer-1)
 }
 
 // ChannelSeqNo retrieves the current seqNo and updates it
