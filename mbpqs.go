@@ -212,7 +212,6 @@ func (sk *PrivateKey) GetSeqNo() (SignatureSeqNo, error) {
 	sk.mux.Lock()
 	// Unlock the lock when the funtion is finished.
 	defer sk.mux.Unlock()
-	fmt.Println(sk.seqNo)
 	// Check if there are still root keys left to sign channels.
 	if uint64(sk.seqNo) >= (1 << sk.ctx.params.rootH) {
 		return 0, fmt.Errorf("no unused channel signing keys left")
@@ -348,7 +347,7 @@ func (pk *PublicKey) VerifyChannelMsg(sig *MsgSignature, msg, authNode []byte) (
 	lTreeAddr.setType(lTreeAddrType)
 	lTreeAddr.setLTree(uint32(sig.chainSeqNo))
 	curHash := pk.ctx.lTree(pad, wotsPk, pk.ph, lTreeAddr)
-	fmt.Printf("Leaf in verification, must be authpath for next: %x\n", curHash)
+
 	// Now hash the leaf with the authentication path.
 	var nodeAddr address
 	nodeAddr.setSubTreeFrom(addr)
@@ -359,10 +358,13 @@ func (pk *PublicKey) VerifyChannelMsg(sig *MsgSignature, msg, authNode []byte) (
 	pk.ctx.hInto(pad, sig.authPath, curHash, pk.ph, nodeAddr, curHash)
 
 	// Compare the computed value with the previous authentication path node.
-	fmt.Printf("Current hash: %x\n", curHash)
-	fmt.Printf("Authnode: %x\n", authNode)
 	if subtle.ConstantTimeCompare(curHash, authNode) != 1 {
 		return false, nil
 	}
 	return true, nil
+}
+
+// GetRootField retrievs the root hash field from the the RootSignature.
+func (rtSig *RootSignature) GetRootField() []byte {
+	return rtSig.rootHash
 }
