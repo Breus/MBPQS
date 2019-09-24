@@ -6,43 +6,6 @@ import (
 	"sync"
 )
 
-// Signature is the interface type for RootSignature, MsgSignature, and GrowSignature.
-type Signature interface {
-	GetAuthPath() []byte
-	GetRootField() []byte
-}
-
-// SignatureSeqNo is the sequence number (index) of signatures and wotsKeys in channels and the root tree.
-type SignatureSeqNo uint32
-
-// RootSignature holds a signature on a channel by a rootTree leaf.
-type RootSignature struct {
-	ctx      *Context       // Defines the MBPQS instance which was used to create the Signature.
-	seqNo    SignatureSeqNo // Sequence number of this signature so you know which index key to verify.
-	drv      []byte         // Digest randomized value (r).
-	wotsSig  []byte         // The WOTS signature over the channel root.
-	authPath []byte         // The authentication path for this signature to the rootTree root node.
-	rootHash []byte         // ChannelRoot which is signed.
-}
-
-// MsgSignature holds a signature on a message in a channel.
-type MsgSignature struct {
-	ctx        *Context       // Context defines the mbpqs instance which was used to create the signature.
-	seqNo      SignatureSeqNo // Sequence number of this signature in the channel.
-	drv        []byte         // Digest randomized value (r).
-	wotsSig    []byte         // The WOTS signature over the channel message.
-	authPath   []byte         // Autpath to the rootSignature.
-	chainSeqNo uint32         // Sequence number of this signature in the used chain tree.
-	chIdx      uint32         // In which channel the signature.
-	layer      uint32         // From which chainTree layer the key comes.
-}
-
-// GrowSignature is a signature of the last OTS key in a chain tree over the next chain tree.
-type GrowSignature struct {
-	msgSig   *MsgSignature
-	rootHash []byte
-}
-
 // Channel is a key channel within the MBPQS tree, are stacked chain trees with the same Tree address.
 type Channel struct {
 	idx        uint32         // The chIdx is the offset of the channel in the MBPQS tree.
@@ -268,7 +231,7 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte, lastOne bool) (*M
 	otsAddr.setTree(uint64(chIdx))
 
 	// Select the authentication node in the tree.
-	authPathNode := ct.AuthPath(uint32(chainSeqNo))
+	authPathNode := ct.authPath(uint32(chainSeqNo))
 
 	hashMsg, err := sk.ctx.hashMessage(pad, msg, drv, sk.root, sigIdx)
 	if err != nil {
@@ -368,9 +331,4 @@ func (pk *PublicKey) VerifyChannelMsg(sig *MsgSignature, msg, authNode []byte) (
 		return false, nil
 	}
 	return true, nil
-}
-
-// GetRootField retrievs the root hash field from the the RootSignature.
-func (rtSig *RootSignature) GetRootField() []byte {
-	return rtSig.rootHash
 }

@@ -2,7 +2,7 @@ package mbpqs
 
 import "encoding/binary"
 
-// Encodes the given uint64 into the buffer out in Big Endian
+// Encode the given uint64 in the byte buffer out in Big Endian.
 func encodeUint64Into(x uint64, out []byte) {
 	if len(out)%8 == 0 {
 		binary.BigEndian.PutUint64(out[len(out)-8:], x)

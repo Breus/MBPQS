@@ -189,11 +189,13 @@ func (sk *PrivateKey) getChannelLayer(chIdx uint32) uint32 {
 }
 
 // Retrieve the authpath, calculated from the amount of available keys.
-func (ct *chainTree) AuthPath(sig uint32) []byte {
-	// Authpath is alway the left node in the tree, thus index = 0.
+func (ct *chainTree) authPath(sig uint32) []byte {
+	// For last key in a chainTree, autpath is the right node,
+	// thus index = 1 on bottom level (height=0).
 	if sig == ct.height-1 {
 		return ct.node(0, 1)
 	}
+	// For the rest, authpath is alway the left node in the tree, thus index = 0.
 	return ct.node(ct.height-2-sig, 0)
 }
 
@@ -288,15 +290,4 @@ func (pk *PublicKey) verifyChainTreeRoot(sig *GrowSignature,
 	}
 	return true, nil
 
-}
-
-// GetRootField retrieves the growSig root hash field from the GrowSignature.
-func (gs *GrowSignature) GetRootField() []byte {
-	return gs.rootHash
-}
-
-// GetAuthField retreives the authentication node for the next signature from
-// the current MsgSignature.
-func (ms *MsgSignature) GetAuthField() []byte {
-	return ms.authPath
 }
