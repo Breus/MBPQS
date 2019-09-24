@@ -13,7 +13,7 @@ const (
 // Address type for all address types 32 byte.
 type address [8]uint32
 
-// Address field setters for all Address types.
+// Address field setters for all address types.
 func (addr *address) setLayer(layer uint32) {
 	addr[0] = layer
 }

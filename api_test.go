@@ -125,7 +125,7 @@ func TestSignStoreVerify(t *testing.T) {
 
 	// Generate parameterized keypair.
 	var rootH uint32 = 3
-	var chanH uint32 = 3
+	var chanH uint32 = 5
 	var gf uint32 = 5
 	var w uint16 = 4
 	var n uint32 = 32
@@ -175,7 +175,8 @@ func TestSignStoreVerify(t *testing.T) {
 	// VERIFY FROM "BLOCKCHAIN"
 	// Verify the rootSignature for each channel.
 	for i := 0; i < nrChains; i++ {
-		// /pk.VerifyChannel(mbpqs.RootSignature(mc.channels[i].blocks[0]))
+		// Counter to count correct signature verifications for this channel.
+		var counter int
 
 		// Retrieve the current channel in the multichain
 		curChan := mc.channels[i]
@@ -187,18 +188,25 @@ func TestSignStoreVerify(t *testing.T) {
 			// Current Signature block
 			curSig := curChan.blocks[j]
 			curMsg := []byte("Message in channel" + string(i+1))
-
 			acceptMsg, err := pk.Verify(curSig, curMsg, nextAuthNode)
 			if err != nil {
 				t.Fatalf("Message verification in channel %d failed with error %s", i+1, err)
 			}
 			if !acceptMsg {
 				t.Fatal("Verification of correct message not accepted")
+			} else {
+				counter++
 			}
 			if j == int(chanH) {
 				fmt.Println(reflect.TypeOf(curSig))
 			}
 			nextAuthNode = curSig.NextAuthNode(nextAuthNode)
 		}
+		if counter != len(curChan.blocks) {
+			t.Fatal("Not enough signatures are correctly verified")
+		} else if counter != int(2*chanH+gf) {
+			t.Fatal("Not enough signatures verified correctly")
+		}
 	}
+
 }

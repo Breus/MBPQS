@@ -1,7 +1,5 @@
 package mbpqs
 
-import "fmt"
-
 // SignatureSeqNo is the sequence number (index) of signatures and wotsKeys in channels and the root tree.
 type SignatureSeqNo uint32
 
@@ -72,7 +70,6 @@ func (ms *MsgSignature) NextAuthNode(prevAuthNode ...[]byte) []byte {
 // Return whether the msgsignature is the last one for the current chainTree.
 func (ms *MsgSignature) lastMsgInChain() bool {
 	if ms.chainSeqNo == (ms.ctx.chainTreeHeight(ms.layer) - 1) {
-		fmt.Printf("LAST SIGN IN THE CHAINTREE IS %d\n", ms.ctx.chainTreeHeight(ms.layer))
 		return true
 	}
 	return false
