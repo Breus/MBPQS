@@ -203,7 +203,7 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte, lastOne bool) (*M
 	ch := sk.getChannel(chIdx)
 	// If the function call does not have the 'lastOne' flag, check if it is the last key
 	// in the chain, so that it will not be used to sign a message instead of the next chain.
-	if !lastOne && sk.ctx.deriveChainTreeHeight(ch.layers)-1 == uint32(ch.chainSeqNo) {
+	if !lastOne && sk.ctx.chainTreeHeight(ch.layers)-1 == uint32(ch.chainSeqNo) {
 		return nil, fmt.Errorf("please grow the channel before signing new messages in it")
 	}
 

@@ -41,7 +41,7 @@ func (sk *PrivateKey) deriveChannel(chIdx uint32) *Channel {
 
 // Allocates a new ChainTree and returns a generated chaintree into the memory.
 func (sk *PrivateKey) genChainTree(pad scratchPad, chIdx, chLayer uint32) chainTree {
-	ct := newChainTree(sk.ctx.deriveChainTreeHeight(chLayer), sk.ctx.params.n)
+	ct := newChainTree(sk.ctx.chainTreeHeight(chLayer), sk.ctx.params.n)
 	sk.genChainTreeInto(pad, chIdx, chLayer, ct)
 	return ct
 }
@@ -162,7 +162,7 @@ func chainTreeFromBuf(buf []byte, height, n uint32) chainTree {
 }
 
 // Returns the height of a chain tree at layer chainLayer.
-func (ctx *Context) deriveChainTreeHeight(chainLayer uint32) uint32 {
+func (ctx *Context) chainTreeHeight(chainLayer uint32) uint32 {
 	return ctx.params.chanH + ctx.params.gf*(chainLayer-1)
 }
 
@@ -201,7 +201,7 @@ func (ct *chainTree) authPath(sig uint32) []byte {
 
 // Get node height of a node on chainLayer with chainSeqNo chainSeqNo.
 func (ctx *Context) getNodeHeight(chainLayer, chainSeqNo uint32) uint32 {
-	chainHeight := ctx.deriveChainTreeHeight(chainLayer)
+	chainHeight := ctx.chainTreeHeight(chainLayer)
 	if chainHeight-1 == chainSeqNo {
 		return 0
 	}
@@ -251,7 +251,7 @@ func (sk *PrivateKey) signChainTreeRoot(chIdx uint32,
 // GrowChannel sign the message 'msg' in the channel and checks for growth.
 func (sk *PrivateKey) growChannel(chIdx uint32) (*GrowSignature, error) {
 	ch := sk.getChannel(chIdx)
-	if !(sk.ctx.deriveChainTreeHeight(ch.layers)-1 == uint32(ch.chainSeqNo)) {
+	if !(sk.ctx.chainTreeHeight(ch.layers)-1 == uint32(ch.chainSeqNo)) {
 		return nil, fmt.Errorf("last chainTree hasn't used its full capacity yet")
 	}
 	return sk.appendChainTree(chIdx)

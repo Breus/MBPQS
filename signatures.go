@@ -1,11 +1,13 @@
 package mbpqs
 
+import "fmt"
+
 // SignatureSeqNo is the sequence number (index) of signatures and wotsKeys in channels and the root tree.
 type SignatureSeqNo uint32
 
 // Signature is the interface type for RootSignature, MsgSignature, and GrowSignature.
 type Signature interface {
-	GetAuthPath() []byte
+	NextAuthNode(prevAuthNode ...[]byte) []byte // Retrieve the current Authentication root after this signature is verified.
 }
 
 // RootSignature holds a signature on a channel by a rootTree leaf.
@@ -18,7 +20,7 @@ type RootSignature struct {
 	rootHash []byte         // ChannelRoot which is signed.
 }
 
-// GrowSignature is a signature of the last OTS key in a chain tree over the next chain tree.
+// GrowSignature is a signature of the last OTS key in a chain tree over the next chain tree root node.
 type GrowSignature struct {
 	msgSig   *MsgSignature
 	rootHash []byte
@@ -42,24 +44,36 @@ func (rtSig *RootSignature) GetSignedRoot() []byte {
 	return rtSig.rootHash
 }
 
-// GetAuthPath returns the authentication path for the RootSignature.
-func (rtSig *RootSignature) GetAuthPath() []byte {
-	return rtSig.authPath
+// NextAuthNode returns the authentication path for the RootSignature.
+func (rtSig *RootSignature) NextAuthNode(prevAuthNode ...[]byte) []byte {
+	return rtSig.GetSignedRoot()
 }
 
-// GetSignedRoot returns the growSig root hash field from the GrowSignature.
+// NextAuthNode returns the growSig root hash field from the GrowSignature.
 // This is the chainTree root signed in this signature.
-func (gs *GrowSignature) GetSignedRoot() []byte {
+func (gs *GrowSignature) NextAuthNode(prevAuthNode ...[]byte) []byte {
 	return gs.rootHash
 }
 
 // GetAuthPath return the authentication path for the GrowSignature.
 func (gs *GrowSignature) GetAuthPath() []byte {
-	return gs.msgSig.GetAuthPath()
+	return gs.msgSig.authPath
 }
 
-// GetAuthPath returns the authentication node for the next signature from
+// NextAuthNode returns the authentication node for the next signature from
 // the current MsgSignature.
-func (ms *MsgSignature) GetAuthPath() []byte {
+func (ms *MsgSignature) NextAuthNode(prevAuthNode ...[]byte) []byte {
+	if ms.lastMsgInChain() {
+		return prevAuthNode[0]
+	}
 	return ms.authPath
+}
+
+// Return whether the msgsignature is the last one for the current chainTree.
+func (ms *MsgSignature) lastMsgInChain() bool {
+	if ms.chainSeqNo == (ms.ctx.chainTreeHeight(ms.layer) - 1) {
+		fmt.Printf("LAST SIGN IN THE CHAINTREE IS %d\n", ms.ctx.chainTreeHeight(ms.layer))
+		return true
+	}
+	return false
 }

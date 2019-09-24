@@ -4,6 +4,7 @@ package mbpqs_test
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/Breus/mbpqs"
@@ -16,10 +17,10 @@ func TestMultiChannels(t *testing.T) {
 	// Generate parameterized keypair.
 	var rootH uint32 = 3
 	var chanH uint32 = 20
-	var ge uint32 = 20
+	var gf uint32 = 20
 	var w uint16 = 4
 	var n uint32 = 32
-	sk, pk, err := mbpqs.GenKeyPair(n, rootH, chanH, ge, w)
+	sk, pk, err := mbpqs.GenKeyPair(n, rootH, chanH, gf, w)
 	if err != nil {
 		t.Fatalf("KeyGen failed: %s\n", err)
 	}
@@ -40,7 +41,7 @@ func TestMultiChannels(t *testing.T) {
 			t.Fatal("Channel verification not accepted")
 		}
 
-		// Set the authnode to the root of the first chain tree.
+		// Set the authnode to the root of the first blocks tree.
 		authNode := rtSig.GetSignedRoot()
 
 		// Now, we sign 2^chanH times, and verify the signatures in each channel.
@@ -61,7 +62,7 @@ func TestMultiChannels(t *testing.T) {
 			} else {
 				fmt.Printf("Correctly verified message %d in channel %d\n", j, chIdx)
 			}
-			authNode = sig.GetAuthPath()
+			authNode = sig.NextAuthNode()
 		}
 		// Let's grow the channels!
 		gs, err := sk.GrowChannel(chIdx)
@@ -77,9 +78,9 @@ func TestMultiChannels(t *testing.T) {
 			t.Fatalf("Correct growth of channel %d not accepted", chIdx)
 		}
 
-		authNode = gs.GetSignedRoot()
+		authNode = gs.NextAuthNode()
 		// We have new keys to sign, lets use them!
-		for h := 0; h < int(chanH+ge-1); h++ {
+		for h := 0; h < int(chanH+gf-1); h++ {
 			msg := []byte("Message after growth" + string(h))
 			sig, err := sk.SignChannelMsg(chIdx, msg, false)
 			if err != nil {
@@ -96,19 +97,19 @@ func TestMultiChannels(t *testing.T) {
 			} else {
 				fmt.Printf("Correctly verified message %d in channel %d\n", h, chIdx)
 			}
-			authNode = sig.GetAuthPath()
+			authNode = sig.NextAuthNode()
 		}
 	}
 }
 
 // Multichain mimick for testing purposes.
 type Multichain struct {
-	chains []Blockchain
+	channels []Blockchain
 }
 
 // Blockchain mimick for testing purposes.
 type Blockchain struct {
-	chain []mbpqs.Signature
+	blocks []mbpqs.Signature
 }
 
 // TestSignStoreVerify signs multiple messages in multiple channels.
@@ -118,17 +119,17 @@ type Blockchain struct {
 func TestSignStoreVerify(t *testing.T) {
 	var nrChains int = 5
 	// Make a multichain with 'nrChains' blockchains.
-	multChain := Multichain{
-		chains: make([]Blockchain, nrChains),
+	mc := Multichain{
+		channels: make([]Blockchain, nrChains),
 	}
 
 	// Generate parameterized keypair.
 	var rootH uint32 = 3
-	var chanH uint32 = 10
-	var ge uint32 = 20
+	var chanH uint32 = 3
+	var gf uint32 = 5
 	var w uint16 = 4
 	var n uint32 = 32
-	sk, _, err := mbpqs.GenKeyPair(n, rootH, chanH, ge, w)
+	sk, pk, err := mbpqs.GenKeyPair(n, rootH, chanH, gf, w)
 	if err != nil {
 		t.Fatalf("KeyGen failed: %s\n", err)
 	}
@@ -141,35 +142,63 @@ func TestSignStoreVerify(t *testing.T) {
 			t.Fatalf("Addition of channel %d failed with error %s\n", chIdx, err)
 		}
 
-		// Add the rootSig to the chain.
-		multChain.chains[i].chain = append(multChain.chains[i].chain, rtSig)
+		// Add the rootSig to the blocks.
+		mc.channels[i].blocks = append(mc.channels[i].blocks, rtSig)
 
-		// Lets sign 10 messages in each channel and add it to its respective chain.
+		// Lets sign 10 messages in each channel and add it to its respective blocks.
 		for j := 0; j < int(chanH-1); j++ {
-			msg := []byte("Message" + string(j) + "in channel" + string(chIdx))
+			msg := []byte("Message in channel" + string(chIdx))
 			msgSig, err := sk.SignMsg(chIdx, msg)
 			if err != nil {
 				t.Fatalf("Signing message %d in channel %d failed with error %s\n", j, chIdx, err)
 			}
-			multChain.chains[i].chain = append(multChain.chains[i].chain, msgSig)
+			mc.channels[i].blocks = append(mc.channels[i].blocks, msgSig)
 		}
 		// Lets also test a growsignature.
 		growSig, err := sk.GrowChannel(chIdx)
 		if err != nil {
 			t.Fatalf("Growing channel %d failed with error %s\n", chIdx, err)
 		}
-		multChain.chains[i].chain = append(multChain.chains[i].chain, growSig)
+		mc.channels[i].blocks = append(mc.channels[i].blocks, growSig)
 
 		// Lets add a few more message siganture to test.
-		for k := 0; k < int(chanH-1+ge); k++ {
-			msg := []byte("Message" + string(k) + "in channel" + string(chIdx))
+		for k := 0; k < int(chanH-1+gf); k++ {
+			msg := []byte("Message in channel" + string(chIdx))
 			msgSig, err := sk.SignMsg(chIdx, msg)
 			if err != nil {
 				t.Fatalf("Signing message %d in channel %d failed with error %s\n", k, chIdx, err)
 			}
-			multChain.chains[i].chain = append(multChain.chains[i].chain, msgSig)
+			mc.channels[i].blocks = append(mc.channels[i].blocks, msgSig)
 		}
 	}
 
 	// VERIFY FROM "BLOCKCHAIN"
+	// Verify the rootSignature for each channel.
+	for i := 0; i < nrChains; i++ {
+		// /pk.VerifyChannel(mbpqs.RootSignature(mc.channels[i].blocks[0]))
+
+		// Retrieve the current channel in the multichain
+		curChan := mc.channels[i]
+
+		var nextAuthNode []byte
+
+		// Lets verify the rest of the messages in the channel.
+		for j := 0; j < int(chanH*2+gf); j++ {
+			// Current Signature block
+			curSig := curChan.blocks[j]
+			curMsg := []byte("Message in channel" + string(i+1))
+
+			acceptMsg, err := pk.Verify(curSig, curMsg, nextAuthNode)
+			if err != nil {
+				t.Fatalf("Message verification in channel %d failed with error %s", i+1, err)
+			}
+			if !acceptMsg {
+				t.Fatal("Verification of correct message not accepted")
+			}
+			if j == int(chanH) {
+				fmt.Println(reflect.TypeOf(curSig))
+			}
+			nextAuthNode = curSig.NextAuthNode(nextAuthNode)
+		}
+	}
 }

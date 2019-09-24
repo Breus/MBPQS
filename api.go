@@ -1,5 +1,7 @@
 package mbpqs
 
+import "fmt"
+
 // GenKeyPair generates a keypair for the given parameters.
 func GenKeyPair(n, rtH, chanH, gf uint32, w uint16) (*PrivateKey, *PublicKey, error) {
 	return GenerateKeyPair(InitParam(n, rtH, chanH, gf, w))
@@ -35,4 +37,21 @@ func (sk *PrivateKey) SignMsg(chIdx uint32, msg []byte) (*MsgSignature, error) {
 func (pk *PublicKey) VerifyMsg(sig *MsgSignature, msg, authNode []byte) (
 	bool, error) {
 	return pk.VerifyChannelMsg(sig, msg, authNode)
+}
+
+// Verify is the generic verification function for all signature types.
+// First parameter: signature of any type
+// Second (optional) parameter: message, plus additionally a authentication node as third.
+// Authnod of growsignature and msgsignature should be CurAuthNode of previous signature.
+func (pk *PublicKey) Verify(sig Signature, msgAuthNode ...[]byte) (bool, error) {
+	switch t := sig.(type) {
+	case *RootSignature:
+		return pk.VerifyChannel(sig.(*RootSignature))
+	case *MsgSignature:
+		return pk.VerifyMsg(sig.(*MsgSignature), msgAuthNode[0], msgAuthNode[1])
+	case *GrowSignature:
+		return pk.VerifyGrow(sig.(*GrowSignature), msgAuthNode[1])
+	default:
+		return false, fmt.Errorf("unknown signature type %T", t)
+	}
 }
