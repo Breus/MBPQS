@@ -11,8 +11,7 @@ type Signature interface {
 // RootSignature holds a signature on a channel by a rootTree leaf.
 type RootSignature struct {
 	ctx      *Context       // Defines the MBPQS instance which was used to create the Signature.
-	seqNo    SignatureSeqNo // Sequence number of this signature so you know which index key to verify.
-	drv      []byte         // Digest randomized value (r).
+	seqNo    SignatureSeqNo // Index of the used leaf in the roottree used for signing.
 	wotsSig  []byte         // The WOTS signature over the channel root.
 	authPath []byte         // The authentication path for this signature to the rootTree root node.
 	rootHash []byte         // ChannelRoot which is signed.

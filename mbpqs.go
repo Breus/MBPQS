@@ -8,7 +8,6 @@ import (
 
 // Channel is a key channel within the MBPQS tree, are stacked chain trees with the same Tree address.
 type Channel struct {
-	idx        uint32         // The chIdx is the offset of the channel in the MBPQS tree.
 	layers     uint32         // The amount of chain layers in the channel.
 	chainSeqNo uint32         // The first signatureseqno available for signing in the channel (last chain).
 	seqNo      SignatureSeqNo // The unique sequence number of the next available key.
@@ -93,13 +92,6 @@ func (sk *PrivateKey) SignChannelRoot(chRt []byte) (*RootSignature, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Compute the digest randomized value (drv)
-	drv := sk.ctx.prfUint64(pad, uint64(seqNo), sk.skPrf)
-	// Hashed channelroot with H_msg
-	hashChRt, err := sk.ctx.hashMessage(pad, chRt, drv, sk.root, uint64(seqNo))
-	if err != nil {
-		return nil, err
-	}
 
 	// Set otsAddr to calculate wotsSign over the message.
 	var otsAddr address // All fields should be 0, that's why init is enough.
@@ -112,8 +104,7 @@ func (sk *PrivateKey) SignChannelRoot(chRt []byte) (*RootSignature, error) {
 	sig := RootSignature{
 		ctx:      sk.ctx,
 		seqNo:    seqNo,
-		drv:      drv,
-		wotsSig:  sk.ctx.wotsSign(pad, hashChRt, sk.pubSeed, sk.skSeed, otsAddr),
+		wotsSig:  sk.ctx.wotsSign(pad, chRt, sk.pubSeed, sk.skSeed, otsAddr),
 		authPath: authPath,
 		rootHash: chRt,
 	}
@@ -124,18 +115,13 @@ func (sk *PrivateKey) SignChannelRoot(chRt []byte) (*RootSignature, error) {
 func (pk *PublicKey) VerifyChannelRoot(rtSig *RootSignature, chRt []byte) (bool, error) {
 	// Create a new scratchpad to do the verifiyng computations on.
 	pad := pk.ctx.newScratchPad()
-	hashChRt, err := pk.ctx.hashMessage(pad, chRt, rtSig.drv, pk.root, uint64(rtSig.seqNo))
-	if err != nil {
-		return false, err
-	}
-
 	// Derive the wotsPk from the signature.
 	var otsAddr address // all fields are 0, like they are supposed to.
 	otsAddr.setOTS(uint32(rtSig.seqNo))
 
 	// Create the wotsPk on the scratchpad.
 	wotsPk := pad.wotsBuf()
-	pk.ctx.wotsPkFromSigInto(pad, rtSig.wotsSig, hashChRt, pk.ph, otsAddr, wotsPk)
+	pk.ctx.wotsPkFromSigInto(pad, rtSig.wotsSig, chRt, pk.ph, otsAddr, wotsPk)
 
 	// Create the leaf from the wotsPk.
 	var lTreeAddr address            // init with all fields 0.
@@ -168,9 +154,9 @@ func (pk *PublicKey) VerifyChannelRoot(rtSig *RootSignature, chRt []byte) (bool,
 		pk.ctx.hInto(pad, left, right, pk.ph, nodeAddr, curHash)
 		index >>= 1
 	}
-	hashChRt = curHash
+	chRt = curHash
 
-	if subtle.ConstantTimeCompare(hashChRt, pk.root) != 1 {
+	if subtle.ConstantTimeCompare(chRt, pk.root) != 1 {
 		return false, fmt.Errorf("invalid signature")
 	}
 	return true, nil

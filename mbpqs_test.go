@@ -13,7 +13,8 @@ func TestSignAndVerify(t *testing.T) {
 
 	// Check if we can sign and verify 2^rootH times.
 	for i := 0; i < 1<<params.rootH; i++ {
-		msg := []byte("Hello message" + string(i))
+		// Root messages will always be n-byte large because they are root of chain trees (n-byte nodes).
+		msg := make([]byte, 32)
 		sign, err := sk.SignChannelRoot(msg)
 		if err != nil {
 			t.Fatalf("signing crashed with error %s", err)
@@ -41,11 +42,11 @@ func TestSignAndVerify(t *testing.T) {
 		t.Fatalf("key generation went wrong %s", err)
 	}
 
-	msg1 := []byte("Yes")
-	msg2 := []byte("Yes.")
-
-	sign, _ = sk.SignChannelRoot(msg1)
-	accept, _ := pk.VerifyChannelRoot(sign, msg2)
+	msg2 := make([]byte, 64)
+	msg1 := make([]byte, 64)
+	msg1[0] = byte('h')
+	sign, _ = sk.SignChannelRoot(msg2)
+	accept, _ := pk.VerifyChannelRoot(sign, msg1)
 	if accept {
 		t.Fatal("Can verify the signature over a different message!")
 	}

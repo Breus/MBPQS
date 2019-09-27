@@ -10,7 +10,7 @@ const (
 	treeAddrType  = 2
 )
 
-// Address type for all address types 32 byte.
+// 32 byte type for all address types.
 type address [8]uint32
 
 // Address field setters for all address types.

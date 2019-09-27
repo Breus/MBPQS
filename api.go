@@ -55,3 +55,6 @@ func (pk *PublicKey) Verify(sig Signature, msgAuthNode ...[]byte) (bool, error) 
 		return false, fmt.Errorf("unknown signature type %T", t)
 	}
 }
+
+// The api functions to receive the next authentication node for signature
+// chaining are located in signature.go.

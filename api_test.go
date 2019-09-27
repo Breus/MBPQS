@@ -4,7 +4,6 @@ package mbpqs_test
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 
 	"github.com/Breus/mbpqs"
@@ -15,8 +14,8 @@ import (
 // grows the channel and signs/verifies new messages.
 func TestMultiChannels(t *testing.T) {
 	// Generate parameterized keypair.
-	var rootH uint32 = 3
-	var chanH uint32 = 20
+	var rootH uint32 = 2
+	var chanH uint32 = 10
 	var gf uint32 = 20
 	var w uint16 = 4
 	var n uint32 = 32
@@ -124,14 +123,16 @@ func TestSignStoreVerify(t *testing.T) {
 	}
 
 	// Generate parameterized keypair.
-	var rootH uint32 = 3
-	var chanH uint32 = 5
-	var gf uint32 = 5
+	var rootH uint32 = 12
+	var chanH uint32 = 10
+	var gf uint32 = 20
 	var w uint16 = 4
 	var n uint32 = 32
 	sk, pk, err := mbpqs.GenKeyPair(n, rootH, chanH, gf, w)
 	if err != nil {
 		t.Fatalf("KeyGen failed: %s\n", err)
+	} else {
+		fmt.Println("Key generation finished")
 	}
 
 	// SIGN + STORE ON "BLOCKCHAIN"
@@ -196,9 +197,6 @@ func TestSignStoreVerify(t *testing.T) {
 				t.Fatal("Verification of correct message not accepted")
 			} else {
 				counter++
-			}
-			if j == int(chanH) {
-				fmt.Println(reflect.TypeOf(curSig))
 			}
 			nextAuthNode = curSig.NextAuthNode(nextAuthNode)
 		}

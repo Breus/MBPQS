@@ -32,7 +32,6 @@ type chainTree struct {
 // DeriveChannel creates a channel for chanelIdx.
 func (sk *PrivateKey) deriveChannel(chIdx uint32) *Channel {
 	return &Channel{
-		idx:        chIdx,
 		layers:     0,
 		chainSeqNo: 0,
 		seqNo:      0,

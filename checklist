@@ -1,0 +1,50 @@
+MPQS FILES:
+- address.go
+- 
+
+TEST FILES:
+
+
+Analysis:
+Public key size (bytes)
+    - root: n
+    - pubSeed: n
+Total size: 2n + ph
+
+Private key size (bytes)
+    - seqNo: 4
+    - channels:
+        -  layers: 4
+        -  chainseqNo: 4
+        -  seqNo: 4
+    - skSeed: n
+    - skPrf: n
+    - pubSeed: n
+    - root: n
+ Total size: 4 + 12c + 4n
+
+
+Signature sizes (bytes)
+
+- RootSignature:
+    - seqNo: 4
+    - drv: n
+    - wotsSig: l*n
+    - authPath: h*n
+    - rootHash: n
+Total size: 4 + (l + 2 + h)n bytes
+
+- MsgSignature: 
+    - seqNo: 4
+    - drv: n
+    - wotsSig: l*n
+    - authPath: n
+    - chainSeqNo: 4
+    - chIdx: 4
+    - layer: 4
+Total size: 32 + (l + 1)n
+
+- GrowSignature:
+    - MsgSignature: 32 + (l + 1)n
+    - rootHash: n
+Total size: 32 + (l + 2)n
