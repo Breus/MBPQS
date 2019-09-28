@@ -30,7 +30,7 @@ func (pk *PublicKey) VerifyGrow(sig *GrowSignature, authNode []byte) (bool, erro
 
 // SignMsg returns the signature over the message in channel with index chIdx.
 func (sk *PrivateKey) SignMsg(chIdx uint32, msg []byte) (*MsgSignature, error) {
-	return sk.SignChannelMsg(chIdx, msg, false)
+	return sk.SignChannelMsg(chIdx, msg)
 }
 
 // VerifyMsg returns if the signature/message pair verifies to the previous authNode.

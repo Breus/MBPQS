@@ -19,8 +19,13 @@ type RootSignature struct {
 
 // GrowSignature is a signature of the last OTS key in a chain tree over the next chain tree root node.
 type GrowSignature struct {
-	msgSig   *MsgSignature
-	rootHash []byte
+	ctx        *Context
+	seqNo      SignatureSeqNo
+	wotsSig    []byte
+	rootHash   []byte
+	chainSeqNo uint32
+	chIdx      uint32
+	layer      uint32
 }
 
 // MsgSignature holds a signature on a message in a channel.
@@ -50,11 +55,6 @@ func (rtSig *RootSignature) NextAuthNode(prevAuthNode ...[]byte) []byte {
 // This is the chainTree root signed in this signature.
 func (gs *GrowSignature) NextAuthNode(prevAuthNode ...[]byte) []byte {
 	return gs.rootHash
-}
-
-// GetAuthPath return the authentication path for the GrowSignature.
-func (gs *GrowSignature) GetAuthPath() []byte {
-	return gs.msgSig.authPath
 }
 
 // NextAuthNode returns the authentication node for the next signature from

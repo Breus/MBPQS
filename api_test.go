@@ -46,7 +46,7 @@ func TestMultiChannels(t *testing.T) {
 		// Now, we sign 2^chanH times, and verify the signatures in each channel.
 		for j := 0; j < int(chanH)-1; j++ {
 			msg := []byte("Message" + string(j))
-			sig, err := sk.SignChannelMsg(chIdx, msg, false)
+			sig, err := sk.SignChannelMsg(chIdx, msg)
 			if err != nil {
 				t.Fatalf("Message signing in channel %d failed with error %s\n", chIdx, err)
 			}
@@ -81,7 +81,7 @@ func TestMultiChannels(t *testing.T) {
 		// We have new keys to sign, lets use them!
 		for h := 0; h < int(chanH+gf-1); h++ {
 			msg := []byte("Message after growth" + string(h))
-			sig, err := sk.SignChannelMsg(chIdx, msg, false)
+			sig, err := sk.SignChannelMsg(chIdx, msg)
 			if err != nil {
 				t.Fatalf("Message signing in channel %d failed with error %s\n", chIdx, err)
 			}
@@ -194,7 +194,7 @@ func TestSignStoreVerify(t *testing.T) {
 				t.Fatalf("Message verification in channel %d failed with error %s", i+1, err)
 			}
 			if !acceptMsg {
-				t.Fatal("Verification of correct message not accepted")
+				t.Fatalf("Verification of correct message %d not accepted", j)
 			} else {
 				counter++
 			}

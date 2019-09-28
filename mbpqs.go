@@ -177,7 +177,7 @@ func (sk *PrivateKey) GetSeqNo() (SignatureSeqNo, error) {
 
 // SignChannelMsg signs the message 'msg' in the channel with index chIdx.
 // Be cautious: this
-func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte, lastOne bool) (*MsgSignature, error) {
+func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*MsgSignature, error) {
 	// Channels start from index 1.
 	if chIdx == 0 {
 		return nil, fmt.Errorf("channels start at index 1")
@@ -189,7 +189,7 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte, lastOne bool) (*M
 	ch := sk.getChannel(chIdx)
 	// If the function call does not have the 'lastOne' flag, check if it is the last key
 	// in the chain, so that it will not be used to sign a message instead of the next chain.
-	if !lastOne && sk.ctx.chainTreeHeight(ch.layers)-1 == uint32(ch.chainSeqNo) {
+	if sk.ctx.chainTreeHeight(ch.layers)-1 == uint32(ch.chainSeqNo) {
 		return nil, fmt.Errorf("please grow the channel before signing new messages in it")
 	}
 
