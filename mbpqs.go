@@ -178,12 +178,8 @@ func (sk *PrivateKey) GetSeqNo() (SignatureSeqNo, error) {
 // SignChannelMsg signs the message 'msg' in the channel with index chIdx.
 // Be cautious: this
 func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*MsgSignature, error) {
-	// Channels start from index 1.
-	if chIdx == 0 {
-		return nil, fmt.Errorf("channels start at index 1")
-	}
 	// Returns an error if the channel does not exist.
-	if chIdx >= uint32(len(sk.Channels)+1) {
+	if chIdx >= uint32(len(sk.Channels)) {
 		return nil, fmt.Errorf("channel does not exist, please create it first")
 	}
 	ch := sk.getChannel(chIdx)
@@ -196,7 +192,10 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*MsgSignature, e
 	// Create scratchpad to avoid memory allocations.
 	pad := sk.ctx.newScratchPad()
 	// Retrieve and update chainSeqNo and channel seqNo
-	chainSeqNo, seqNo := sk.ChannelSeqNos(chIdx)
+	chainSeqNo, seqNo, err := sk.ChannelSeqNos(chIdx)
+	if err != nil {
+		return nil, err
+	}
 
 	// 64-bit sigIdx, seed value for drv to avoid collisions with seqNo's in the root tree!
 	// This value includes the channelID in the first 32 bits of the seed, and the seqNo in the last 32 bits.
@@ -242,7 +241,7 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*MsgSignature, e
 // Create a new channel, returns its index and the signature of its first chainTreeRoot.
 func (sk *PrivateKey) createChannel() (uint32, *RootSignature, error) {
 	// Determine the channelIndex.
-	chIdx := uint32(len(sk.Channels) + 1)
+	chIdx := uint32(len(sk.Channels))
 	// Scratchpad to avoid computation allocations.
 	pad := sk.ctx.newScratchPad()
 	// Create a new channel, because it does not exist yet.

@@ -188,7 +188,7 @@ func TestSignStoreVerify(t *testing.T) {
 		for j := 0; j < int(chanH*2+gf); j++ {
 			// Current Signature block
 			curSig := curChan.blocks[j]
-			curMsg := []byte("Message in channel" + string(i+1))
+			curMsg := []byte("Message in channel" + string(i))
 			acceptMsg, err := pk.Verify(curSig, curMsg, nextAuthNode)
 			if err != nil {
 				t.Fatalf("Message verification in channel %d failed with error %s", i+1, err)

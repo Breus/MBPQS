@@ -162,25 +162,33 @@ func chainTreeFromBuf(buf []byte, height, n uint32) chainTree {
 
 // Returns the height of a chain tree at layer chainLayer.
 func (ctx *Context) chainTreeHeight(chainLayer uint32) uint32 {
+	fmt.Printf("ChanH: %d, gf: %d, chainlayer: %d\n", ctx.params.chanH, ctx.params.gf, chainLayer)
 	return ctx.params.chanH + ctx.params.gf*(chainLayer-1)
 }
 
-// ChannelSeqNo retrieves the current seqNo and updates it
-func (sk *PrivateKey) ChannelSeqNo(chIdx uint32) SignatureSeqNo {
+// ChainSeqNo retrieves the current cahinSeqNo and increases it with one.
+func (sk *PrivateKey) ChainSeqNo(chIdx uint32) uint32 {
 	ch := sk.getChannel(chIdx)
-	ch.seqNo++
-	return ch.seqNo - 1
+	ch.mux.Lock()
+	ch.chainSeqNo++
+	ch.mux.Unlock()
+	return ch.chainSeqNo - 1
+
 }
 
 // ChannelSeqNos retrieves the current chainSeqNo and the current channelSeqNo.
-func (sk *PrivateKey) ChannelSeqNos(chIdx uint32) (uint32, SignatureSeqNo) {
+func (sk *PrivateKey) ChannelSeqNos(chIdx uint32) (uint32, SignatureSeqNo, error) {
 	ch := sk.getChannel(chIdx)
 	ch.mux.Lock()
 	// Unlock the lock when the function is finished.
 	defer ch.mux.Unlock()
 	ch.chainSeqNo++
+	if uint32(ch.seqNo) == ^uint32(0) {
+		return 0, 0, fmt.Errorf("Please use a new key channel, this one has used the maximum of keys (2^32)")
+	}
+
 	ch.seqNo++
-	return ch.chainSeqNo - 1, ch.seqNo - 1
+	return ch.chainSeqNo - 1, ch.seqNo - 1, nil
 }
 
 // Returns the layer of the current chain in the channel.
@@ -210,24 +218,22 @@ func (ctx *Context) getNodeHeight(chainLayer, chainSeqNo uint32) uint32 {
 
 // Returns the channel on index input.
 func (sk *PrivateKey) getChannel(chIdx uint32) *Channel {
-	return sk.Channels[chIdx-1]
+	return sk.Channels[chIdx]
 }
 
 // GrowChannel creates a GrowSignature for channel chIdx with the root of the next chainTree embedded.
 func (sk *PrivateKey) growChannel(chIdx uint32) (*GrowSignature, error) {
-	// Check if chIdx != 0.
-	if chIdx == 0 {
-		return nil, fmt.Errorf("channels start at index 1")
-	}
-
 	// Returns an error if the channel does not exist.
-	if chIdx >= uint32(len(sk.Channels)+1) {
+	if chIdx > uint32(len(sk.Channels)) {
 		return nil, fmt.Errorf("channel does not exist, please create it first")
 	}
 
 	// Check if last key of a chaintree is used to sign a new chain tree.
 	ch := sk.getChannel(chIdx)
 	if !(sk.ctx.chainTreeHeight(ch.layers)-1 == uint32(ch.chainSeqNo)) {
+		fmt.Printf("Ch.layers: %d\n", ch.layers)
+		fmt.Println(sk.ctx.chainTreeHeight(ch.layers))
+		fmt.Printf("ChainSeqNo: %d\n", uint32(ch.chainSeqNo))
 		return nil, fmt.Errorf("current chainTree hasn't used its full capacity yet")
 	}
 
@@ -236,8 +242,8 @@ func (sk *PrivateKey) growChannel(chIdx uint32) (*GrowSignature, error) {
 	ct := sk.genChainTree(pad, chIdx, ch.layers+1)
 	ctRoot := ct.getRootNode()
 
-	// Retrieve and update chainSeqNo and channel seqNo
-	chainSeqNo, seqNo := sk.ChannelSeqNos(chIdx)
+	// Retrieve and update chainSeqNo.
+	chainSeqNo := sk.ChainSeqNo(chIdx)
 
 	// Set OTSaddr to calculate the Wots sig over the message.
 	var otsAddr address
@@ -249,7 +255,6 @@ func (sk *PrivateKey) growChannel(chIdx uint32) (*GrowSignature, error) {
 	sig := &GrowSignature{
 		ctx:        sk.ctx,
 		chainSeqNo: chainSeqNo,
-		seqNo:      seqNo,
 		chIdx:      chIdx,
 		layer:      ch.layers,
 		wotsSig:    sk.ctx.wotsSign(pad, ctRoot, sk.pubSeed, sk.skSeed, otsAddr),

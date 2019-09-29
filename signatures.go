@@ -20,7 +20,6 @@ type RootSignature struct {
 // GrowSignature is a signature of the last OTS key in a chain tree over the next chain tree root node.
 type GrowSignature struct {
 	ctx        *Context
-	seqNo      SignatureSeqNo
 	wotsSig    []byte
 	rootHash   []byte
 	chainSeqNo uint32

@@ -1,7 +1,6 @@
 package mbpqs
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -209,14 +208,10 @@ func TestChannelSigningGrowing(t *testing.T) {
 	}
 
 	// Verify the channel in the message.
-	fmt.Println(growSig.rootHash)
-
 	accept5, err := pk.VerifyChannelMsg(chSig5, msg5, growSig.rootHash)
 	if err != nil {
 		t.Fatalf("verification of right message failed with errror %s", err)
 	}
-	fmt.Println(chSig5.seqNo)
-	fmt.Println(chSig5.chainSeqNo)
 
 	if !accept5 {
 		t.Fatalf("verification of correct message/signature pair not accepted")
