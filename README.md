@@ -9,8 +9,11 @@ The parameters for MBPQS are as following:
 * **w**, chosen from {4,16,256}: Winternitz parameter.
 * **rootH**, integer < 20: height of the root tree, defines the maximum amount of channels which can be added (which is 2^rootH).
 * **chanH**, integer < 2^32: height of the initial chain tree in a channel.
-* ** gf **, integer < (2^32-chanH): growing factor for subsequent chain trees in a channel. `gf=0` results in no growth.
+* **gf**, integer < (2^32-chanH): growing factor for subsequent chain trees in a channel. `gf=0` results in no growth.
 
+## Disclaimer ##
+This code is meant to showcase the workings of MBPQS, cross-validation, and experimenting. 
+Do NOT use this code any software deployment as cryptographic code requires careful consideration of the specific deployment environment.
 
 ## Installation ##
 ``` go get -u github.com/Breus/mbpqs ```
