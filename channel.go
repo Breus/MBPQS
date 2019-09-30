@@ -162,7 +162,6 @@ func chainTreeFromBuf(buf []byte, height, n uint32) chainTree {
 
 // Returns the height of a chain tree at layer chainLayer.
 func (ctx *Context) chainTreeHeight(chainLayer uint32) uint32 {
-	fmt.Printf("ChanH: %d, gf: %d, chainlayer: %d\n", ctx.params.chanH, ctx.params.gf, chainLayer)
 	return ctx.params.chanH + ctx.params.gf*(chainLayer-1)
 }
 
@@ -231,9 +230,6 @@ func (sk *PrivateKey) growChannel(chIdx uint32) (*GrowSignature, error) {
 	// Check if last key of a chaintree is used to sign a new chain tree.
 	ch := sk.getChannel(chIdx)
 	if !(sk.ctx.chainTreeHeight(ch.layers)-1 == uint32(ch.chainSeqNo)) {
-		fmt.Printf("Ch.layers: %d\n", ch.layers)
-		fmt.Println(sk.ctx.chainTreeHeight(ch.layers))
-		fmt.Printf("ChainSeqNo: %d\n", uint32(ch.chainSeqNo))
 		return nil, fmt.Errorf("current chainTree hasn't used its full capacity yet")
 	}
 
