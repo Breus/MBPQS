@@ -19,4 +19,6 @@ Do NOT use this code any software deployment as cryptographic code requires care
 ``` go get -u github.com/Breus/mbpqs ```
 
 ## References ##
+The scheme design uses ideas from [XMSS-T](https://www.iacr.org/archive/pkc2016/96140179/96140179.pdf) to reach quantum-resistance, and the ChainTree structure from [BPQS](https://eprint.iacr.org/2018/658.pdf). 
+
 The implementation of WOTS+ (including multi-target resistance from WOTS-T) and parts of the XMSS tree generation, including the corresponding unit tests, are taken from [Go-XMSS-MT](https://github.com/bwesterb/go-xmssmt) from [Bas Westerbaan](https://bas.westerbaan.name/). 
