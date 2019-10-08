@@ -32,6 +32,7 @@ func TestMultiChannels(t *testing.T) {
 			t.Fatalf("Adding %d-th channel failed with error %s\n", chIdx, err)
 		}
 		fmt.Printf("Created channel %d\n", chIdx)
+
 		acceptChannel, err := pk.VerifyChannel(rtSig)
 		if err != nil {
 			t.Fatalf("Channel verification failed: %s\n", err)

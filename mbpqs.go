@@ -17,7 +17,7 @@ type Channel struct {
 // PrivateKey is a MBPQS private key */
 type PrivateKey struct {
 	seqNo    SignatureSeqNo // The seqNo of the first unused signing key in the root Tree.
-	Channels []*Channel     // Channels in the privatekey.
+	Channels []*Channel     // Channel states in the privatekey.
 	/* n-byte skSeed is used to pseudorandomly generate wots channelkeys seeds.
 	 * S in RFC8931, SK_1 and S in XMSS-T paper.
 	 */
@@ -116,7 +116,7 @@ func (pk *PublicKey) VerifyChannelRoot(rtSig *RootSignature, chRt []byte) (bool,
 	// Create a new scratchpad to do the verifiyng computations on.
 	pad := pk.ctx.newScratchPad()
 	// Derive the wotsPk from the signature.
-	var otsAddr address // all fields are 0, like they are supposed to.
+	var otsAddr address // all fields are 0, like they are supposed to.i
 	otsAddr.setOTS(uint32(rtSig.seqNo))
 
 	// Create the wotsPk on the scratchpad.
