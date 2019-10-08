@@ -77,7 +77,7 @@ func TestChannelSigningEnoughSigsInChain(t *testing.T) {
 	}
 
 	// Sign the message msg in this channel.
-	msg := make([]byte, 32)
+	msg := []byte("This is the message to be signed")
 	chSig, err := sk.SignMsg(chIdx, msg)
 	if err != nil {
 		t.Fatalf("signing in channel failed with error %s", err)

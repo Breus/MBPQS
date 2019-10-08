@@ -23,6 +23,7 @@ func (ctx *Context) wotsChainLengths(msg []byte) []uint8 {
 
 	// compute the chain lengths for the message itself
 	ctx.toBaseW(msg, ret[:ctx.wotsLen1])
+
 	// compute the checksum
 	var csum uint32 // = 0 init
 	for i := 0; i < int(ctx.wotsLen1); i++ {
