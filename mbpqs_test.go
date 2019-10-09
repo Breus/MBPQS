@@ -65,7 +65,7 @@ func TestNonExistingChannelSigning(t *testing.T) {
 
 func TestChannelSigningEnoughSigsInChain(t *testing.T) {
 	// Create MBPQS keypair.
-	sk, pk, err := GenerateKeyPair(&Params{n: 32, w: 4, c: 1, rootH: 3, chanH: 10}, 0)
+	sk, pk, err := GenerateKeyPair(&Params{n: 32, w: 4, c: 0, rootH: 3, chanH: 10}, 0)
 	if err != nil {
 		t.Fatalf("keygeneration gave error %s", err)
 	}
@@ -127,7 +127,7 @@ func TestChannelSigningEnoughSigsInChain(t *testing.T) {
 func TestChannelSigningGrowing(t *testing.T) {
 	var chanH uint32 = 4
 	// Creat MBPQS keypair with low amount of chanH.
-	sk, pk, err := GenerateKeyPair(&Params{n: 32, w: 4, c: 1, rootH: 3, chanH: chanH}, 0)
+	sk, pk, err := GenerateKeyPair(&Params{n: 32, w: 4, c: 0, rootH: 3, chanH: chanH}, 0)
 	if err != nil {
 		t.Fatalf("keygeneration gave error %s", err)
 	}
@@ -221,7 +221,7 @@ func TestChannelSigningGrowing(t *testing.T) {
 // Testing multiple channel creations and verifications.
 func TestChannelCreation(t *testing.T) {
 	var rootH uint32 = 5
-	sk, pk, err := GenKeyPair(32, rootH, 6, 10, 256)
+	sk, pk, err := GenKeyPair(32, rootH, 6, 0, 256)
 	if err != nil {
 		t.Fatalf("KeyGen crashed with error: %s\n", err)
 	}

@@ -16,7 +16,7 @@ func TestMultiChannels(t *testing.T) {
 	// Generate parameterized keypair.
 	var rootH uint32 = 2
 	var chanH uint32 = 10
-	var c uint16 = 20
+	var c uint16 = 0
 	var w uint16 = 4
 	var n uint32 = 32
 	sk, pk, err := mbpqs.GenKeyPair(n, rootH, chanH, c, w)
@@ -79,7 +79,7 @@ func TestMultiChannels(t *testing.T) {
 
 		authNode = gs.NextAuthNode()
 		// We have new keys to sign, lets use them!
-		for h := 0; h < int(chanH); h++ {
+		for h := 0; h < int(chanH-1); h++ {
 			msg := []byte("Message after growth" + string(h))
 			sig, err := sk.SignChannelMsg(chIdx, msg)
 			if err != nil {
@@ -125,7 +125,7 @@ func TestSignStoreVerify(t *testing.T) {
 	// Generate parameterized keypair.
 	var rootH uint32 = 12
 	var chanH uint32 = 10
-	var c uint16 = 20
+	var c uint16 = 0
 	var w uint16 = 4
 	var n uint32 = 32
 	sk, pk, err := mbpqs.GenKeyPair(n, rootH, chanH, c, w)
@@ -163,7 +163,7 @@ func TestSignStoreVerify(t *testing.T) {
 		mc.channels[i].blocks = append(mc.channels[i].blocks, growSig)
 
 		// Lets add a few more message siganture to test.
-		for k := 0; k < int(chanH); k++ {
+		for k := 0; k < int(chanH-1); k++ {
 			msg := []byte("Message in channel" + string(chIdx))
 			msgSig, err := sk.SignMsg(chIdx, msg)
 			if err != nil {
@@ -184,8 +184,8 @@ func TestSignStoreVerify(t *testing.T) {
 
 		var nextAuthNode []byte
 
-		// Lets verify the rest of the messages in the channel.
-		for j := 0; j < int(chanH); j++ {
+		// Lets verify the signatures in the channel.
+		for j := 0; j < int(len(curChan.blocks)); j++ {
 			// Current Signature block
 			curSig := curChan.blocks[j]
 			curMsg := []byte("Message in channel" + string(i))
@@ -202,7 +202,8 @@ func TestSignStoreVerify(t *testing.T) {
 		}
 		if counter != len(curChan.blocks) {
 			t.Fatal("Not enough signatures are correctly verified")
-		} else if counter != int(2*chanH) {
+		}
+		if counter != int(2*(chanH-1)+2) {
 			t.Fatal("Not enough signatures verified correctly")
 		}
 	}
