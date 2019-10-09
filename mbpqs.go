@@ -59,9 +59,10 @@ func InitParam(n, rtH, chanH, gf uint32, w uint16) *Params {
 }
 
 // GenerateKeyPair generates a new MBPQS keypair for given parameters.
-func GenerateKeyPair(p *Params) (*PrivateKey, *PublicKey, error) {
+func GenerateKeyPair(p *Params, t int) (*PrivateKey, *PublicKey, error) {
 	// Create new context including given parameters.
 	ctx, err := newContext(p)
+	ctx.threads = t
 	if err != nil {
 		return nil, nil, err
 	}
@@ -263,7 +264,6 @@ func (sk *PrivateKey) createChannel() (uint32, *RootSignature, error) {
 	if err != nil {
 		return 0, nil, err
 	}
-
 	return chIdx, rtSig, nil
 }
 

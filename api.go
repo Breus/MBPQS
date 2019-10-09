@@ -4,7 +4,7 @@ import "fmt"
 
 // GenKeyPair generates a keypair for the given parameters.
 func GenKeyPair(n, rtH, chanH, gf uint32, w uint16) (*PrivateKey, *PublicKey, error) {
-	return GenerateKeyPair(InitParam(n, rtH, chanH, gf, w))
+	return GenerateKeyPair(InitParam(n, rtH, chanH, gf, w), 0)
 }
 
 // AddChannel returns the ID of the added channel, and the signature of

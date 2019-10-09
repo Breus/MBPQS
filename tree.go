@@ -1,7 +1,6 @@
 package mbpqs
 
 import (
-	"fmt"
 	"runtime"
 	"sync"
 )
@@ -62,7 +61,6 @@ func (ctx *Context) genRootTree(pad scratchPad, ph precomputedHashes) rootTree {
 
 // Generate a root tree into the allocated memory rt.
 func (ctx *Context) genRootTreeInto(pad scratchPad, ph precomputedHashes, rt rootTree) {
-	fmt.Println("Generating Root Tree..")
 	// Init address for OTS, LTree nodes, and Tree nodes.
 	var otsAddr, lTreeAddr, nodeAddr address
 	// Set subTreeAddress for the

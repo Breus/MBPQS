@@ -47,7 +47,6 @@ func (sk *PrivateKey) genChainTree(pad scratchPad, chIdx, chLayer uint32) chainT
 
 // Generates a chain tree into ct.
 func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer uint32, ct chainTree) {
-	fmt.Println("Generating Chain Tree...")
 	// Init addresses for OTS, LTree nodes, and Tree nodes.
 	var otsAddr, lTreeAddr, nodeAddr address
 	sta := SubTreeAddress{
