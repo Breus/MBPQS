@@ -6,16 +6,15 @@ type Params struct {
 	w     uint16 // the Winternitz parameter, used in WOTS-T.
 	rootH uint32 // the height of the three (# levels -1).
 	chanH uint32 // the inital chain tree height.
-	gf    uint32 // the chain tree height growing exponent.
-
+	c     uint16 // cache skip
 }
 
 var paramSets = []*Params{
-	&Params{n: 32, rootH: 10, w: 16, gf: 1, chanH: 1},
-	&Params{n: 32, rootH: 16, w: 16, gf: 1, chanH: 1},
-	&Params{n: 32, rootH: 20, w: 16, gf: 1, chanH: 1},
-	&Params{n: 64, rootH: 10, w: 16, gf: 1, chanH: 1},
-	&Params{n: 64, rootH: 16, w: 16, gf: 1, chanH: 1},
+	&Params{n: 32, rootH: 10, w: 16, c: 1, chanH: 1},
+	&Params{n: 32, rootH: 16, w: 16, c: 1, chanH: 1},
+	&Params{n: 32, rootH: 20, w: 16, c: 1, chanH: 1},
+	&Params{n: 64, rootH: 10, w: 16, c: 1, chanH: 1},
+	&Params{n: 64, rootH: 16, w: 16, c: 1, chanH: 1},
 }
 
 // NewContextFromOid returns a new context for the given Root tree.

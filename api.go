@@ -3,8 +3,8 @@ package mbpqs
 import "fmt"
 
 // GenKeyPair generates a keypair for the given parameters.
-func GenKeyPair(n, rtH, chanH, gf uint32, w uint16) (*PrivateKey, *PublicKey, error) {
-	return GenerateKeyPair(InitParam(n, rtH, chanH, gf, w), 0)
+func GenKeyPair(n, rtH, chanH uint32, c uint16, w uint16) (*PrivateKey, *PublicKey, error) {
+	return GenerateKeyPair(InitParam(n, rtH, chanH, c, w), 0)
 }
 
 // AddChannel returns the ID of the added channel, and the signature of

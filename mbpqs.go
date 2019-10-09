@@ -12,6 +12,7 @@ type Channel struct {
 	chainSeqNo uint32         // The first signatureseqno available for signing in the channel (last chain).
 	seqNo      SignatureSeqNo // The unique sequence number of the next available key.
 	mux        sync.Mutex     // Used when mutual exclusion for the channel is required.
+	cache      []byte         // Cached internal nodes of current chain tree.
 }
 
 // PrivateKey is a MBPQS private key */
@@ -48,13 +49,13 @@ type PublicKey struct {
 }
 
 // InitParam returns a pointer to a Params struct with parameters initialized to given arguments.
-func InitParam(n, rtH, chanH, gf uint32, w uint16) *Params {
+func InitParam(n, rtH, chanH uint32, c, w uint16) *Params {
 	return &Params{
 		n:     n,
 		w:     w,
 		rootH: rtH,
 		chanH: chanH,
-		gf:    gf,
+		c:     c,
 	}
 }
 
@@ -206,8 +207,24 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*MsgSignature, e
 	drv := sk.ctx.prfUint64(pad, sigIdx, sk.skPrf)
 
 	chLayer := sk.getChannelLayer(chIdx)
+
+	var authPathNode []byte
 	// Compute the chainTree.
-	ct := sk.genChainTree(pad, chIdx, chLayer)
+	c := uint32(sk.ctx.params.c)
+	if c == 0 {
+		ct := sk.genChainTree(pad, chIdx, chLayer)
+		// Select the authentication node in the tree.
+		authPathNode = ct.authPath(uint32(chainSeqNo))
+	} else if chainSeqNo%c == 0 {
+		// authnode is a direct cache hit!
+		authPathNode = ch.cache[chainSeqNo/c-1 : chainSeqNo/c-1+sk.ctx.params.n]
+	} else {
+		h := sk.ctx.params.chanH
+		nh := h - 2 - chainSeqNo
+		closesNode := (nh/c + ((h - 1) % c))
+		ct := sk.genChainTreeFromTill(pad, chIdx, chLayer, closesNode, nh+1)
+		authPathNode = ct.node(nh-closesNode, 0)
+	}
 
 	// Set OTSaddr to calculate the Wots sig over the message.
 
@@ -215,9 +232,6 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*MsgSignature, e
 	otsAddr.setOTS(uint32(chainSeqNo))
 	otsAddr.setLayer(chLayer)
 	otsAddr.setTree(uint64(chIdx))
-
-	// Select the authentication node in the tree.
-	authPathNode := ct.authPath(uint32(chainSeqNo))
 
 	hashMsg, err := sk.ctx.hashMessage(pad, msg, drv, sk.root, sigIdx)
 	if err != nil {
@@ -247,6 +261,33 @@ func (sk *PrivateKey) createChannel() (uint32, *RootSignature, error) {
 	pad := sk.ctx.newScratchPad()
 	// Create a new channel, because it does not exist yet.
 	ch := sk.deriveChannel(chIdx)
+
+	// Create the first chainTree for the channel
+	ct := sk.genChainTree(pad, chIdx, 1)
+
+	// Initialize internal node cache if c > 0.
+	if sk.ctx.params.c > 0 {
+		h := sk.ctx.params.chanH
+		c := uint32(sk.ctx.params.c)
+		n := sk.ctx.params.n
+
+		cacheBuf := make([]byte, n*((h-1)/c))
+
+		//First cache node height .
+		nh := h - 1 - c
+
+		// Fill the cache untill it reaches it's last node.
+		var idx uint32
+		for nh > (h-1)%c {
+			// Put the node at height nh in the cache.
+			copy(cacheBuf[idx*n:idx*n+n], ct.node(nh, 0))
+			// Decrease the node height with c.
+			nh -= c
+			// Increase cacheBuf index counter.
+			idx++
+		}
+		ch.cache = cacheBuf
+	}
 	// Appending the created channel to the channellist in the PK.
 	sk.Channels = append(sk.Channels, ch)
 	// Update the channel.
@@ -255,8 +296,6 @@ func (sk *PrivateKey) createChannel() (uint32, *RootSignature, error) {
 	ch.chainSeqNo = 0
 	ch.mux.Unlock()
 
-	// Create the first chainTree for the channel
-	ct := sk.genChainTree(pad, chIdx, 1)
 	// Get the root, and sign it.
 	root := ct.getRootNode()
 	// Sign the root.

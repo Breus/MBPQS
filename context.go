@@ -30,6 +30,13 @@ func newContext(p *Params) (ctx *Context, err error) {
 	if p.rootH > 32 {
 		return nil, fmt.Errorf("the maxmimum root tree height is 32")
 	}
+	if p.chanH < 2 {
+		return nil, fmt.Errorf("minimum value for h = 2 (tree with 2 leafs)")
+	}
+	if p.c > uint16(p.chanH-1) {
+		return nil, fmt.Errorf("maximum value for c = h - 1")
+	}
+
 	ctx.params = p
 	ctx.indexBytes = 4
 	ctx.wotsLogW = p.wotsLogW()
@@ -46,10 +53,6 @@ func (ctx *Context) deriveKeyPair(skSeed, skPrf, pubSeed []byte) (
 	*PrivateKey, *PublicKey, error) {
 	if len(pubSeed) != int(ctx.params.n) || len(skSeed) != int(ctx.params.n) || len(skPrf) != int(ctx.params.n) {
 		return nil, nil, fmt.Errorf("skPrf, skSeed and pubSeed should have length %d", ctx.params.n)
-	} else if ctx.params.rootH > 32 {
-		return nil, nil, fmt.Errorf("Maximum supported value for n = 32")
-	} else if ctx.params.chanH == ^uint32(0) {
-		return nil, nil, fmt.Errorf("Maximum supported value for chanH = 2^32-2")
 	}
 
 	pad := ctx.newScratchPad()
