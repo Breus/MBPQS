@@ -189,10 +189,12 @@ func (ctx *Context) lTree(pad scratchPad, wotsPk []byte, ph precomputedHashes, a
 		// Set the new height level for the next layer level.
 		height++
 	}
-	ret := make([]byte, ctx.params.n)
-	// Copy the n-byte root leaf into the ret byte slice.
-	copy(ret, wotsPk[:ctx.params.n])
-	return ret
+	//ret := make([]byte, ctx.params.n)
+
+	// fmt.Println(len(ret))
+	// // Copy the n-byte root leaf into the ret byte slice.
+	// copy(ret, wotsPk[:ctx.params.n])
+	return wotsPk[:ctx.params.n]
 }
 
 // Return the authentication path for the given leaf.
@@ -215,6 +217,7 @@ func (rt *rootTree) AuthPath(leaf uint32) []byte {
  * The scratchpad includes a buffer with memory allocated for various computations.
  * Furthermore, the buffer includes a hashScratchPad, which is used as scratchpad during hash operations.
  */
+
 func (ctx *Context) newScratchPad() scratchPad {
 	n := ctx.params.n
 	pad := scratchPad{

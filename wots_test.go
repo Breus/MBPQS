@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"math/rand"
 	"testing"
 )
 
@@ -110,4 +111,58 @@ func testWotSignThenVerify(ctx *Context, t *testing.T) {
 func TestWotsSignThenVerify(t *testing.T) {
 	testWotSignThenVerify(NewContextFromOid(1), t)
 	testWotSignThenVerify(NewContextFromOid(4), t)
+}
+
+func BenchmarkWotsSign_SHA256_10(b *testing.B) {
+	benchmarkWotsSign(b, 1)
+}
+
+func benchmarkWotsSign(b *testing.B, oid uint32) {
+	ctx := NewContextFromOid(1)
+	var pubSeed []byte = make([]byte, ctx.params.n)
+	var skSeed []byte = make([]byte, ctx.params.n)
+	var msg []byte = make([]byte, ctx.params.n)
+	var addr [8]uint32
+	for i := 0; i < int(ctx.params.n); i++ {
+		pubSeed[i] = byte(2 * i)
+		skSeed[i] = byte(i)
+		msg[i] = byte(3 * i)
+	}
+	for i := 0; i < 8; i++ {
+		addr[i] = 500000000 * uint32(i)
+	}
+	pad := ctx.newScratchPad()
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		rand.Read(msg)
+		ctx.wotsSign(pad, msg, pubSeed, skSeed, address(addr))
+	}
+}
+
+func BenchmarkWotsVerify_SHA256(b *testing.B) {
+	benchmarkWotsVerify(b, 1)
+}
+
+func benchmarkWotsVerify(b *testing.B, oid uint32) {
+	sk, _, _ := GenKeyPair(32, 4, 0, 0, 4)
+	ctx := sk.ctx
+	var pubSeed []byte = make([]byte, ctx.params.n)
+	var skSeed []byte = make([]byte, ctx.params.n)
+	var msg []byte = make([]byte, ctx.params.n)
+	var addr [8]uint32
+	for i := 0; i < int(ctx.params.n); i++ {
+		pubSeed[i] = byte(2 * i)
+		skSeed[i] = byte(i)
+	}
+	for i := 0; i < 8; i++ {
+		addr[i] = 500000000 * uint32(i)
+	}
+	pad := ctx.newScratchPad()
+	sig := ctx.wotsSign(pad, msg, pubSeed, skSeed, address(addr))
+	ph := ctx.precomputeHashes(pubSeed, nil)
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		rand.Read(msg)
+		ctx.wotsPkFromSigInto(pad, sig, msg, ph, address(addr), pad.wotsBuf())
+	}
 }

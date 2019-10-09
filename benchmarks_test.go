@@ -10,7 +10,9 @@ import (
 // Benchmarks for Initial Key Generation.
 func benchmarkKeyGen(n, rtH uint32, w uint16, b *testing.B) {
 	p := InitParam(n, rtH, 1000, 1000, w)
-	GenerateKeyPair(p, 1)
+	for i := 0; i < b.N; i++ {
+		GenerateKeyPair(p, 1)
+	}
 }
 
 func BenchmarkKeyGen_n32_w4_H10(b *testing.B) {
@@ -82,12 +84,17 @@ func BenchmarkKeyGen_n32_w256_H20(b *testing.B) {
 // From here, benchmarks for AddChannel
 func benchmarkAddChannel(h uint32, w uint16, b *testing.B) {
 	p := InitParam(32, 5, h, 0, w)
-	sk, _, _ := GenerateKeyPair(p, 1)
+	sk, _, _ := GenerateKeyPair(p, 4)
 	b.ResetTimer()
-	sk.AddChannel()
+	for i := 0; i < b.N; i++ {
+		sk.AddChannel()
+	}
 }
 
 // AddChannel for w=4
+func BenchmarkAddChannel_h10_w4(b *testing.B) {
+	benchmarkAddChannel(5, 4, b)
+}
 func BenchmarkAddChannel_h100_w4(b *testing.B) {
 	benchmarkAddChannel(100, 4, b)
 }
@@ -175,7 +182,8 @@ func randomUint32(min, max int32) int32 {
 }
 
 func benchmarkSignMsg(h uint32, w uint16, b *testing.B) {
-	p := InitParam(32, 5, h, 0, w)
+
+	p := InitParam(32, 2, h, 0, w)
 	sk, _, err := GenerateKeyPair(p, 0)
 	if err != nil {
 		log.Fatal("BenchmarkSignMsg failed in keygen with error:", err)
@@ -184,20 +192,25 @@ func benchmarkSignMsg(h uint32, w uint16, b *testing.B) {
 	if err != nil {
 		log.Fatal("BenchmarkSignMsg failed with error:", err)
 	}
-	// Generate random length messages between Hyperledger prefered default max size
-	// and minimum block size.
-	// Prefered max size messages: 512KB, max message count default: 10
-	// Minimum transaction size:
 
-	msg := make([]byte, 5120000)
+	msg := make([]byte, 51200)
 	rand.Read(msg)
 	b.ResetTimer()
-	_, err = sk.SignChannelMsg(chIdx, msg)
+	for i := 0; i < b.N; i++ {
+		_, err = sk.SignChannelMsg(chIdx, msg)
+	}
 	b.StopTimer()
 	if err != nil {
 		log.Fatal("Signing failed in signmsg benchmark with error:", err)
 	}
+}
 
+func BenchmarkSignMsg_h1_w4(b *testing.B) {
+	benchmarkSignMsg(2, 4, b)
+}
+
+func BenchmarkSignMsg_h10_w4(b *testing.B) {
+	benchmarkSignMsg(10, 4, b)
 }
 
 func BenchmarkSignMsg_h100_w4(b *testing.B) {
