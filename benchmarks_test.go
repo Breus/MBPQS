@@ -1,178 +1,65 @@
 package mbpqs
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
 	"testing"
 	"time"
 )
 
-// Benchmarks for Initial Key Generation.
-func benchmarkKeyGen(n, rtH uint32, w uint16, b *testing.B) {
-	p := InitParam(n, rtH, 1000, 1000, w)
+// Benchmark function for Initial Key Generation.
+func benchmarkKeyGen(rtH uint32, w uint16, b *testing.B) {
+	p := InitParam(32, rtH, 2, 0, w)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		GenerateKeyPair(p, 1)
+		GenerateKeyPair(p, 0)
 	}
 }
 
-func BenchmarkKeyGen_n32_w4_H10(b *testing.B) {
-	benchmarkKeyGen(32, 10, 4, b)
-}
-
-func BenchmarkKeyGen_n32_w4_H14(b *testing.B) {
-	benchmarkKeyGen(32, 14, 4, b)
-}
-
-func BenchmarkKeyGen_n32_w4_H16(b *testing.B) {
+// Benchmark KeyGen for different parameters of w and H.
+func BenchmarkKeyGen(b *testing.B) {
+	wCases := []uint16{4, 16, 256}
+	HCases := []uint32{8, 10, 12, 14, 16}
 	if testing.Short() {
-		b.Skip("Skipping keygen benchmark for H = 16, w = 4")
+		wCases = []uint16{4, 16}
+		HCases = []uint32{8, 10, 12, 14}
 	}
-	benchmarkKeyGen(32, 16, 4, b)
-}
 
-func BenchmarkKeyGen_n32_w4_H20(b *testing.B) {
-	if testing.Short() {
-		b.Skip("Skipping keygen benchmark for H = 20, w = 4")
+	for _, w := range wCases {
+		for _, H := range HCases {
+			name := "w" + fmt.Sprint(w) + "-H" + fmt.Sprint(H)
+			b.Run(name, func(b *testing.B) {
+				benchmarkKeyGen(H, w, b)
+			})
+		}
 	}
-	benchmarkKeyGen(32, 20, 4, b)
+
 }
 
-func BenchmarkKeyGen_n32_w16_H10(b *testing.B) {
-	benchmarkKeyGen(32, 10, 16, b)
-}
-
-func BenchmarkKeyGen_n32_w16_H14(b *testing.B) {
-	benchmarkKeyGen(32, 14, 16, b)
-}
-
-func BenchmarkKeyGen_n32_w16_H16(b *testing.B) {
-	if testing.Short() {
-		b.Skip("Skipping keygen benchmark for H = 16, w = 16")
-	}
-	benchmarkKeyGen(32, 16, 16, b)
-}
-
-func BenchmarkKeyGen_n32_w16_H20(b *testing.B) {
-	if testing.Short() {
-		b.Skip("Skipping keygen benchmark for H = 20, w = 16")
-	}
-	benchmarkKeyGen(32, 20, 16, b)
-}
-
-func BenchmarkKeyGen_n32_w256_H10(b *testing.B) {
-	benchmarkKeyGen(32, 10, 256, b)
-}
-
-func BenchmarkKeyGen_n32_w256_H14(b *testing.B) {
-	benchmarkKeyGen(32, 14, 256, b)
-}
-
-func BenchmarkKeyGen_n32_w256_H16(b *testing.B) {
-	if testing.Short() {
-		b.Skip("Skipping keygen benchmark for H = 16, w = 256")
-	}
-	benchmarkKeyGen(32, 16, 256, b)
-}
-
-func BenchmarkKeyGen_n32_w256_H20(b *testing.B) {
-	if testing.Short() {
-		b.Skip("Skipping keygen benchmark for H = 20, w = 256")
-	}
-	benchmarkKeyGen(32, 20, 256, b)
-}
-
-// From here, benchmarks for AddChannel
+// Benchmark function for AddChannel.
 func benchmarkAddChannel(h uint32, w uint16, b *testing.B) {
-	p := InitParam(32, 5, h, 0, w)
-	sk, _, _ := GenerateKeyPair(p, 4)
+	p := InitParam(32, 2, h, 0, w)
+	sk, _, _ := GenerateKeyPair(p, 0)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		sk.AddChannel()
 	}
 }
 
-// AddChannel for w=4
-func BenchmarkAddChannel_h10_w4(b *testing.B) {
-	benchmarkAddChannel(5, 4, b)
-}
-func BenchmarkAddChannel_h100_w4(b *testing.B) {
-	benchmarkAddChannel(100, 4, b)
-}
-
-// AddChannel for w=4
-func BenchmarkAddChannel_h1000_w4(b *testing.B) {
-	benchmarkAddChannel(1000, 4, b)
-}
-
-func BenchmarkAddChannel_h10000_w4(b *testing.B) {
-	benchmarkAddChannel(10000, 4, b)
-}
-
-func BenchmarkAddChannel_h100000_w4(b *testing.B) {
-	if testing.Short() {
-		b.Skip("Skipping benchmark addchannel h=10000, w=4")
+// Run benchmark AddChannel for all combinations of w cases and h cases.
+func BenchmarkAddChannel(b *testing.B) {
+	wCases := []uint16{4, 16, 256}
+	hCases := []uint32{10, 100, 1000}
+	for _, w := range wCases {
+		for _, h := range hCases {
+			name := "w" + fmt.Sprint(w) + "-h" + fmt.Sprint(h)
+			b.Run(name, func(b *testing.B) {
+				benchmarkAddChannel(h, w, b)
+			})
+		}
 	}
-	benchmarkAddChannel(100000, 4, b)
-}
 
-func BenchmarkAddChannel_h1000000_w4(b *testing.B) {
-	if testing.Short() {
-		b.Skip("Skipping benchmark addchannel h=100000, w=4")
-	}
-	benchmarkAddChannel(1000000, 4, b)
-}
-
-// AddChannel for w=16
-func BenchmarkAddChannel_h100_w16(b *testing.B) {
-	benchmarkAddChannel(100, 16, b)
-}
-func BenchmarkAddChannel_h1000_w16(b *testing.B) {
-	benchmarkAddChannel(1000, 16, b)
-}
-
-func BenchmarkAddChannel_h10000_w16(b *testing.B) {
-	benchmarkAddChannel(10000, 16, b)
-}
-
-func BenchmarkAddChannel_h100000_w16(b *testing.B) {
-	if testing.Short() {
-		b.Skip("Skipping benchmark addchannel h=10000, w=16")
-	}
-	benchmarkAddChannel(100000, 16, b)
-}
-
-func BenchmarkAddChannel_h1000000_w16(b *testing.B) {
-	if testing.Short() {
-		b.Skip("Skipping benchmark addchannel h=100000, w=16")
-	}
-	benchmarkAddChannel(1000000, 16, b)
-}
-
-// AddChannel for w=256
-func BenchmarkAddChannel_h100_w256(b *testing.B) {
-	benchmarkAddChannel(100, 256, b)
-}
-
-func BenchmarkAddChannel_h1000_w256(b *testing.B) {
-	benchmarkAddChannel(1000, 256, b)
-}
-
-func BenchmarkAddChannel_h10000_w256(b *testing.B) {
-	benchmarkAddChannel(10000, 256, b)
-}
-
-func BenchmarkAddChannel_h100000_w256(b *testing.B) {
-	if testing.Short() {
-		b.Skip("Skipping benchmark addchannel h=10000, w=256")
-	}
-	benchmarkAddChannel(100000, 256, b)
-}
-
-func BenchmarkAddChannel_h1000000_w256(b *testing.B) {
-	if testing.Short() {
-		b.Skip("Skipping benchmark addchannel h=100000, w=256")
-	}
-	benchmarkAddChannel(1000000, 256, b)
 }
 
 // From here, benchmarks for signing
@@ -181,71 +68,122 @@ func randomUint32(min, max int32) int32 {
 	return rand.Int31n(max-min) + min
 }
 
-func benchmarkSignMsg(h uint32, w uint16, b *testing.B) {
+func benchmarkSignMsg(h uint32, c, w uint16, b *testing.B) {
 
-	p := InitParam(32, 2, h, 0, w)
+	p := InitParam(32, 2, h, c, w)
 	sk, _, err := GenerateKeyPair(p, 0)
 	if err != nil {
-		log.Fatal("BenchmarkSignMsg failed in keygen with error:", err)
+		b.Fatal("BenchmarkSignMsg failed in keygen with error:", err)
 	}
 	chIdx, _, err := sk.AddChannel()
 	if err != nil {
-		log.Fatal("BenchmarkSignMsg failed with error:", err)
+		b.Fatal("BenchmarkSignMsg failed with error:", err)
 	}
 
 	msg := make([]byte, 51200)
 	rand.Read(msg)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err = sk.SignChannelMsg(chIdx, msg)
+		b.StopTimer()
+		if i%int(h-1) == 0 && i > 0 {
+			_, err := sk.GrowChannel(chIdx)
+			if err != nil {
+				log.Fatal("Growing channel failed with error:", err)
+			}
+			b.StartTimer()
+		}
+		b.StartTimer()
+		_, err = sk.SignMsg(chIdx, msg)
+		b.StopTimer()
 	}
-	b.StopTimer()
+
 	if err != nil {
 		log.Fatal("Signing failed in signmsg benchmark with error:", err)
 	}
 }
 
-func BenchmarkSignMsg_h1_w4(b *testing.B) {
-	benchmarkSignMsg(2, 4, b)
-}
-
-func BenchmarkSignMsg_h10_w4(b *testing.B) {
-	benchmarkSignMsg(10, 4, b)
-}
-
-func BenchmarkSignMsg_h100_w4(b *testing.B) {
-	benchmarkSignMsg(100, 4, b)
-}
-
-func BenchmarkSignMsg_h1000_w4(b *testing.B) {
-	benchmarkSignMsg(1000, 4, b)
-}
-
-func BenchmarkSignMsg_h10000_w4(b *testing.B) {
-	benchmarkSignMsg(10000, 4, b)
-}
-func BenchmarkSignMsg_h100000_w4(b *testing.B) {
+// Benchmark message signing for different values of c, w, and h.
+func BenchmarkSignMsg(b *testing.B) {
+	cCases := []uint16{0}
+	wCases := []uint16{4, 16, 256}
+	hCases := []uint32{2, 10, 100, 1000, 100000, 100000}
 	if testing.Short() {
-		b.Skip("Skipping message signing benchmark with h = 100.000, w=4")
+		cCases = []uint16{0}
+		wCases = []uint16{4, 16, 256}
+		hCases = []uint32{10, 100, 1000, 10000}
 	}
-	benchmarkSignMsg(100000, 4, b)
-}
 
-// SignMsg benchmark for w = 16
-func BenchmarkSignMsg_h100_w16(b *testing.B) {
-	benchmarkSignMsg(100, 16, b)
-}
-
-func BenchmarkSignMsg_h1000_w16(b *testing.B) {
-	benchmarkSignMsg(1000, 16, b)
-}
-
-func BenchmarkSignMsg_h10000_w16(b *testing.B) {
-	benchmarkSignMsg(10000, 16, b)
-}
-func BenchmarkSignMsg_h100000_w16(b *testing.B) {
-	if testing.Short() {
-		b.Skip("Skipping message signing benchmark with h = 100.000, w = 16")
+	for _, c := range cCases {
+		for _, w := range wCases {
+			for _, h := range hCases {
+				name := "c" + fmt.Sprint(c) + "-w" + fmt.Sprint(w) + "-h" + fmt.Sprint(h)
+				b.Run(name, func(b *testing.B) {
+					benchmarkSignMsg(h, c, w, b)
+				})
+			}
+		}
 	}
-	benchmarkSignMsg(100000, 16, b)
+}
+
+// Benchmarks for Message verifications.
+func benchmarkVerification(sigs int, w uint16, b *testing.B) {
+	p := InitParam(32, 5, 100, 0, 4)
+	for i := 0; i < b.N; i++ {
+		sk, pk, err := GenerateKeyPair(p, 0)
+		if err != nil {
+			b.Fatal("Generating key pair failed with error: ", err)
+		}
+		chIdx, RtSig, err := sk.AddChannel()
+		if err != nil {
+			b.Fatal("Adding channel failed with error: ", err)
+		}
+		var msg = make([]byte, 49000)
+		rand.Read(msg)
+		var sigChain []Signature
+		var msgChain [][]byte
+		for j := 0; j < sigs; j++ {
+			sig, err := sk.SignMsg(chIdx, msg)
+			if err != nil {
+				b.Fatal("Msg Sign failed with err", err)
+			}
+			sigChain = append(sigChain, sig)
+			msgChain = append(msgChain, msg)
+		}
+		authNode := RtSig.NextAuthNode()
+		var accept bool
+		//var acceptRt bool
+		b.ResetTimer()
+
+		for j := 0; j < sigs; j++ {
+			b.StartTimer()
+			//acceptRt, err = pk.VerifyChannelRoot(RtSig, authNode)
+			accept, err = pk.VerifyMsg(sigChain[j].(*MsgSignature), msg, authNode)
+			if !accept {
+				b.Fatalf("Signature %d not verified", j)
+			}
+			b.StopTimer()
+			authNode = sigChain[j].NextAuthNode(authNode)
+		}
+		b.StopTimer()
+		// if !acceptRt {
+		// 	println("Root not verified")
+		// }
+
+		if err != nil {
+			println("Verify failed with error:", err)
+		}
+	}
+}
+
+func BenchmarkVerification(b *testing.B) {
+	sigs := []int{1, 10, 100, 1000}
+	wCases := []uint16{4, 16}
+	for _, s := range sigs {
+		for _, w := range wCases {
+			name := "w" + fmt.Sprint(w) + "-Sigs" + fmt.Sprint(s)
+			b.Run(name, func(b *testing.B) {
+				benchmarkVerification(s, w, b)
+			})
+		}
+	}
 }

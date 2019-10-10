@@ -1,6 +1,7 @@
 package mbpqs
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -236,6 +237,24 @@ func TestChannelCreation(t *testing.T) {
 		}
 		if !accept {
 			t.Fatalf("Correct channelRoot sig did not verify for channel %d\n", chIdx)
+		}
+	}
+}
+
+func TestSignGrowSign(t *testing.T) {
+	var chanH uint32 = 4
+	msg := []byte("Message to be signed.")
+	p := InitParam(32, 3, chanH, 0, 4)
+	sk, _, _ := GenerateKeyPair(p, 0)
+	chIdx, _, _ := sk.AddChannel()
+	for i := 0; i < int(1000); i++ {
+		if i%int(chanH-1) == 0 {
+			fmt.Println("Growing at index:", i)
+			sk.GrowChannel(chIdx)
+		}
+		_, err := sk.SignMsg(chIdx, msg)
+		if err != nil {
+			t.Fatal("TestSignTest failed with error:", err)
 		}
 	}
 }

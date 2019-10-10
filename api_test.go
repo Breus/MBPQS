@@ -4,6 +4,7 @@ package mbpqs_test
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/Breus/mbpqs"
@@ -116,14 +117,14 @@ type Blockchain struct {
 // Then, we test if a verifier can indeed verify the signatures in the
 // channel it has access to.
 func TestSignStoreVerify(t *testing.T) {
-	var nrChains int = 5
+	var nrChains int = 3
 	// Make a multichain with 'nrChains' blockchains.
 	mc := Multichain{
 		channels: make([]Blockchain, nrChains),
 	}
 
 	// Generate parameterized keypair.
-	var rootH uint32 = 12
+	var rootH uint32 = 2
 	var chanH uint32 = 10
 	var c uint16 = 0
 	var w uint16 = 4
@@ -208,4 +209,43 @@ func TestSignStoreVerify(t *testing.T) {
 		}
 	}
 
+}
+
+func TestVerifyMsg(t *testing.T) {
+	sigs := 99
+	for H := 1; H < 10; H++ {
+		p := mbpqs.InitParam(32, uint32(H), 100, 0, 4)
+		sk, pk, err := mbpqs.GenerateKeyPair(p, 0)
+		if err != nil {
+			t.Fatal("Generating key pair failed with error: ", err)
+		}
+		chIdx, RtSig, err := sk.AddChannel()
+		if err != nil {
+			t.Fatal("Adding channel failed with error: ", err)
+		}
+		msg := make([]byte, 512000)
+		var sigChain []mbpqs.Signature
+		authNode := RtSig.NextAuthNode()
+		for j := 0; j < sigs; j++ {
+
+			rand.Seed(int64(j))
+			rand.Read(msg)
+			sig, err := sk.SignMsg(chIdx, msg)
+			if err != nil {
+				t.Fatal("message signing failed with error:", err)
+			}
+			sigChain = append(sigChain, sig)
+
+			accept, err := pk.VerifyMsg(sigChain[j].(*mbpqs.MsgSignature), msg, authNode)
+
+			if err != nil {
+				t.Fatal("Message verification failed with error:", err)
+			}
+			if !accept {
+				t.Fatal("Correct signature not verified")
+			}
+			authNode = sigChain[j].NextAuthNode(authNode)
+
+		}
+	}
 }

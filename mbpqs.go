@@ -63,6 +63,9 @@ func InitParam(n, rtH, chanH uint32, c, w uint16) *Params {
 func GenerateKeyPair(p *Params, t int) (*PrivateKey, *PublicKey, error) {
 	// Create new context including given parameters.
 	ctx, err := newContext(p)
+	if err != nil {
+		return nil, nil, err
+	}
 	ctx.threads = t
 	if err != nil {
 		return nil, nil, err

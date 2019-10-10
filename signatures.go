@@ -58,7 +58,7 @@ func (gs *GrowSignature) NextAuthNode(prevAuthNode ...[]byte) []byte {
 
 // NextAuthNode returns the authentication node for the next signature from
 // the current MsgSignature.
-func (ms *MsgSignature) NextAuthNode(prevAuthNode ...[]byte) []byte {
+func (ms MsgSignature) NextAuthNode(prevAuthNode ...[]byte) []byte {
 	if ms.lastMsgInChain() {
 		return prevAuthNode[0]
 	}

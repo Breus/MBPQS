@@ -243,6 +243,8 @@ func (sk *PrivateKey) growChannel(chIdx uint32) (*GrowSignature, error) {
 	// Check if last key of a chaintree is used to sign a new chain tree.
 	ch := sk.getChannel(chIdx)
 	if !(sk.ctx.chainTreeHeight(ch.layers)-1 == uint32(ch.chainSeqNo)) {
+		fmt.Println("Tree height is:", sk.ctx.chainTreeHeight(ch.layers))
+		fmt.Println("Chain sequence number is:", uint32(ch.chainSeqNo))
 		return nil, fmt.Errorf("current chainTree hasn't used its full capacity yet")
 	}
 
