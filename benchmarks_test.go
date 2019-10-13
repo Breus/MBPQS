@@ -104,12 +104,12 @@ func benchmarkSignMsg(h uint32, c, w uint16, b *testing.B) {
 
 // Benchmark message signing for different values of c, w, and h.
 func BenchmarkSignMsg(b *testing.B) {
-	cCases := []uint16{0}
+	cCases := []uint16{0, 1}
 	wCases := []uint16{4, 16, 256}
 	hCases := []uint32{2, 10, 100, 1000, 100000, 100000}
 	if testing.Short() {
-		cCases = []uint16{0}
-		wCases = []uint16{4, 16, 256}
+		cCases = []uint16{1}
+		wCases = []uint16{4, 16}
 		hCases = []uint32{10, 100, 1000, 10000}
 	}
 

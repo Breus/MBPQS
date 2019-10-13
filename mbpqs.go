@@ -201,7 +201,6 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*MsgSignature, e
 	if err != nil {
 		return nil, err
 	}
-
 	// 64-bit sigIdx, seed value for drv to avoid collisions with seqNo's in the root tree!
 	// This value includes the channelID in the first 32 bits of the seed, and the seqNo in the last 32 bits.
 	sigIdx := uint64(chIdx)<<32 + uint64(seqNo)
@@ -214,14 +213,15 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*MsgSignature, e
 	var authPathNode []byte
 	// Compute the chainTree.
 	c := uint32(sk.ctx.params.c)
-	if c == 0 {
+	if c == 0 { // There is no cache.
 		ct := sk.genChainTree(pad, chIdx, chLayer)
 		// Select the authentication node in the tree.
 		authPathNode = ct.authPath(uint32(chainSeqNo))
-	} else if chainSeqNo%c == 0 {
-		// authnode is a direct cache hit!
-		authPathNode = ch.cache[chainSeqNo/c-1 : chainSeqNo/c-1+sk.ctx.params.n]
-	} else {
+	} else if c == 1 { // There is a cache, and the required authnode is in the cache.
+		authPathNode = ch.cache[((chainSeqNo+1)/c-1)*sk.ctx.params.n : ((chainSeqNo+1)/c-1)*sk.ctx.params.n+sk.ctx.params.n]
+		// fmt.Println("Authnodes:", authPathNode)
+		fmt.Printf("Cache %d on layer %d:\n", ch.cache, ch.layers)
+	} else { // There is a chache, and the required authnode can be computed from a node in the cache.
 		h := sk.ctx.params.chanH
 		nh := h - 2 - chainSeqNo
 		closesNode := (nh/c + ((h - 1) % c))
@@ -267,24 +267,24 @@ func (sk *PrivateKey) createChannel() (uint32, *RootSignature, error) {
 
 	// Create the first chainTree for the channel
 	ct := sk.genChainTree(pad, chIdx, 1)
-
 	// Initialize internal node cache if c > 0.
 	if sk.ctx.params.c > 0 {
 		h := sk.ctx.params.chanH
 		c := uint32(sk.ctx.params.c)
 		n := sk.ctx.params.n
-
 		cacheBuf := make([]byte, n*((h-1)/c))
-
 		//First cache node height .
 		nh := h - 1 - c
 
 		// Fill the cache untill it reaches it's last node.
 		var idx uint32
-		for nh > (h-1)%c {
+		for nh >= (h-1)%c {
 			// Put the node at height nh in the cache.
 			copy(cacheBuf[idx*n:idx*n+n], ct.node(nh, 0))
 			// Decrease the node height with c.
+			if nh == (h-1)%c {
+				break
+			}
 			nh -= c
 			// Increase cacheBuf index counter.
 			idx++
@@ -301,6 +301,7 @@ func (sk *PrivateKey) createChannel() (uint32, *RootSignature, error) {
 
 	// Get the root, and sign it.
 	root := ct.getRootNode()
+
 	// Sign the root.
 	rtSig, err := sk.SignChannelRoot(root)
 	if err != nil {

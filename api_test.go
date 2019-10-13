@@ -117,7 +117,7 @@ type Blockchain struct {
 // Then, we test if a verifier can indeed verify the signatures in the
 // channel it has access to.
 func TestSignStoreVerify(t *testing.T) {
-	var nrChains int = 3
+	var nrChains int = 1
 	// Make a multichain with 'nrChains' blockchains.
 	mc := Multichain{
 		channels: make([]Blockchain, nrChains),
@@ -125,8 +125,8 @@ func TestSignStoreVerify(t *testing.T) {
 
 	// Generate parameterized keypair.
 	var rootH uint32 = 2
-	var chanH uint32 = 10
-	var c uint16 = 0
+	var chanH uint32 = 4
+	var c uint16 = 1
 	var w uint16 = 4
 	var n uint32 = 32
 	sk, pk, err := mbpqs.GenKeyPair(n, rootH, chanH, c, w)
@@ -195,7 +195,7 @@ func TestSignStoreVerify(t *testing.T) {
 				t.Fatalf("Message verification in channel %d failed with error %s", i+1, err)
 			}
 			if !acceptMsg {
-				t.Fatalf("Verification of correct message %d not accepted", j)
+				t.Fatalf("Verification of correct message %d on chain %d not accepted", j, i)
 			} else {
 				counter++
 			}
@@ -212,9 +212,9 @@ func TestSignStoreVerify(t *testing.T) {
 }
 
 func TestVerifyMsg(t *testing.T) {
-	sigs := 99
-	for H := 1; H < 10; H++ {
-		p := mbpqs.InitParam(32, uint32(H), 100, 0, 4)
+	sigs := 1000
+	for H := 1; H < 2; H++ {
+		p := mbpqs.InitParam(32, uint32(H), 1001, 1, 4)
 		sk, pk, err := mbpqs.GenerateKeyPair(p, 0)
 		if err != nil {
 			t.Fatal("Generating key pair failed with error: ", err)

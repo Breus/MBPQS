@@ -73,7 +73,7 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer, from, til
 	var idx uint32
 	if sk.ctx.threads == 1 {
 		// No. leafs == height of the chain tree.
-		for from = 0; idx < till; idx++ {
+		for idx := from; idx < till; idx++ {
 			lTreeAddr.setLTree(idx)
 			otsAddr.setOTS(idx)
 			copy(sk.leafFrom(&ct, idx, from), sk.ctx.genLeaf(pad, sk.ph, lTreeAddr, otsAddr))
@@ -123,29 +123,29 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer, from, til
 
 	// Next, compute the internal nodes and the root node.
 	var height uint32
-	if sk.ctx.params.c == 0 {
-		// Looping through all the layers of the chainTree.
-		for height = from + 1; height < till; height++ {
-			// Set tree height of the computed node.
-			nodeAddr.setTreeHeight(height - 1)
-			// Internal nodes and root node have Treeindex 0.
-			nodeAddr.setTreeIndex(0)
-			sk.ctx.hInto(pad, ct.node(height-1, 0), ct.node(height-1, 1), sk.ph, nodeAddr, ct.node(height, 0))
-		}
-	} else {
-
+	// Looping through all the layers of the chainTree.
+	for height = from + 1; height < till; height++ {
+		// Set tree height of the computed node.
+		nodeAddr.setTreeHeight(height - 1)
+		// Internal nodes and root node have Treeindex 0.
+		nodeAddr.setTreeIndex(0)
+		sk.ctx.hInto(pad, ct.nodeFrom(height-1, 0, from), ct.nodeFrom(height-1, 1, from), sk.ph, nodeAddr, ct.nodeFrom(height, 0, from))
 	}
+
 }
 
 // Returns a slice of the leaf at given leaf index
 func (sk *PrivateKey) leafFrom(ct *chainTree, idx, from uint32) []byte {
-	if idx == ct.height-1 {
+	if idx-from == ct.height-1 {
 		return ct.node(0, 0)
 	}
+	leafH := sk.ctx.params.chanH - 2 - idx - from
+	return ct.node(leafH, 1)
+}
 
-	leafH := sk.ctx.params.chanH - 2 - idx
-	h := leafH - from
-	return ct.node(h, 1)
+func (ct *chainTree) nodeFrom(height, idx, from uint32) []byte {
+	ptr := ct.n * (2*(height-from) + idx)
+	return ct.buf[ptr : ptr+ct.n]
 }
 
 // Returns a slice of the node at given height and index idx in the chain tree.
@@ -243,8 +243,6 @@ func (sk *PrivateKey) growChannel(chIdx uint32) (*GrowSignature, error) {
 	// Check if last key of a chaintree is used to sign a new chain tree.
 	ch := sk.getChannel(chIdx)
 	if !(sk.ctx.chainTreeHeight(ch.layers)-1 == uint32(ch.chainSeqNo)) {
-		fmt.Println("Tree height is:", sk.ctx.chainTreeHeight(ch.layers))
-		fmt.Println("Chain sequence number is:", uint32(ch.chainSeqNo))
 		return nil, fmt.Errorf("current chainTree hasn't used its full capacity yet")
 	}
 

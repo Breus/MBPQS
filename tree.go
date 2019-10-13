@@ -189,11 +189,6 @@ func (ctx *Context) lTree(pad scratchPad, wotsPk []byte, ph precomputedHashes, a
 		// Set the new height level for the next layer level.
 		height++
 	}
-	//ret := make([]byte, ctx.params.n)
-
-	// fmt.Println(len(ret))
-	// // Copy the n-byte root leaf into the ret byte slice.
-	// copy(ret, wotsPk[:ctx.params.n])
 	return wotsPk[:ctx.params.n]
 }
 
