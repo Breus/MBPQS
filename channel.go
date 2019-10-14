@@ -263,9 +263,12 @@ func (sk *PrivateKey) growChannel(chIdx uint32) (*GrowSignature, error) {
 
 		// Fill the cache untill it reaches it's last node.
 		var idx uint32
-		for nh > (h-1)%c {
+		for nh >= (h-1)%c {
 			// Put the node at height nh in the cache.
 			copy(cacheBuf[idx*n:idx*n+n], ct.node(nh, 0))
+			if nh == (h-1)%c {
+				break
+			}
 			// Decrease the node height with c.
 			nh -= c
 			// Increase cacheBuf index counter.

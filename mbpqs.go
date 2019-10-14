@@ -219,8 +219,6 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*MsgSignature, e
 		authPathNode = ct.authPath(uint32(chainSeqNo))
 	} else if c == 1 { // There is a cache, and the required authnode is in the cache.
 		authPathNode = ch.cache[((chainSeqNo+1)/c-1)*sk.ctx.params.n : ((chainSeqNo+1)/c-1)*sk.ctx.params.n+sk.ctx.params.n]
-		// fmt.Println("Authnodes:", authPathNode)
-		fmt.Printf("Cache %d on layer %d:\n", ch.cache, ch.layers)
 	} else { // There is a chache, and the required authnode can be computed from a node in the cache.
 		h := sk.ctx.params.chanH
 		nh := h - 2 - chainSeqNo

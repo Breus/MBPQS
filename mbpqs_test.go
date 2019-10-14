@@ -6,7 +6,7 @@ import (
 )
 
 func TestSignAndVerify(t *testing.T) {
-	params := &Params{n: 32, w: 4, c: 0, rootH: 2, chanH: 6}
+	params := &Params{n: 32, w: 16, c: 1, rootH: 2, chanH: 2}
 	sk, pk, err := GenerateKeyPair(params, 0)
 	if err != nil {
 		t.Fatalf("key generation went wrong %s", err)
@@ -56,7 +56,7 @@ func TestSignAndVerify(t *testing.T) {
 }
 
 func TestNonExistingChannelSigning(t *testing.T) {
-	sk, _, err := GenerateKeyPair(&Params{n: 32, w: 4, c: 1, rootH: 4, chanH: 10}, 0)
+	sk, _, err := GenerateKeyPair(&Params{n: 32, w: 4, c: 0, rootH: 4, chanH: 10}, 0)
 	if err != nil {
 		t.Fatalf("keygeneration gave error %s", err)
 	}
@@ -68,7 +68,7 @@ func TestNonExistingChannelSigning(t *testing.T) {
 
 func TestChannelSigningEnoughSigsInChain(t *testing.T) {
 	// Create MBPQS keypair.
-	sk, pk, err := GenerateKeyPair(&Params{n: 32, w: 4, c: 1, rootH: 3, chanH: 5}, 1)
+	sk, pk, err := GenerateKeyPair(&Params{n: 32, w: 16, c: 0, rootH: 3, chanH: 1005}, 0)
 	if err != nil {
 		t.Fatalf("keygeneration gave error %s", err)
 	}
@@ -86,7 +86,7 @@ func TestChannelSigningEnoughSigsInChain(t *testing.T) {
 		t.Fatalf("signing in channel failed with error %s", err)
 	}
 
-	// Verify the channel message.
+	// Verify the channel message.166 19 66 193 120 119 122 166 249 123 31 150 236 253 73 144 181 62 150 133 206 239 210 13 170 170 179 76 119 60 44 253 143 140 203 78 101 57 97 228 76 109 221 239 70 158 43 155 165 100 222 0 195 51 128 111 164 144 56 169 146 107 172 233 133 123 102 162 121 117 71 46 146 203 114 190 253 248 169 98 228 233 133 15 220 244 73 65 188 131 100 2 117 34 126 169]
 	accept, err := pk.VerifyChannelMsg(chSig, msg, chRtSig.rootHash)
 	if err != nil {
 		t.Fatalf("verification of right message failed with errror %s", err)
@@ -101,7 +101,6 @@ func TestChannelSigningEnoughSigsInChain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("signing in channel failed with error %s", err)
 	}
-	fmt.Println("Authpath:", chSig.authPath)
 	accept2, err := pk.VerifyChannelMsg(chSig2, msg3, chSig.authPath)
 	if err != nil {
 		t.Fatalf("verification of right message failed with errror %s", err)
