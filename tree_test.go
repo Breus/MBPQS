@@ -119,3 +119,34 @@ func TestRootTree(t *testing.T) {
 		}
 	}
 }
+
+func benchmarkGenLeaf(ctx *Context, b *testing.B) {
+	skSeed := make([]byte, ctx.params.n)
+	pubSeed := make([]byte, ctx.params.n)
+	var lTreeAddr, otsAddr address
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = ctx.genLeaf(ctx.newScratchPad(), ctx.precomputeHashes(pubSeed, skSeed), lTreeAddr, otsAddr)
+	}
+}
+
+func BenchmarkGenLeaf(b *testing.B) {
+	benchmarkGenLeaf(NewContextFromOid(1), b)
+}
+
+func benchmarkLtree(ctx *Context, b *testing.B) {
+	pad := ctx.newScratchPad()
+	var pubSeed []byte = make([]byte, ctx.params.n)
+	var skSeed []byte = make([]byte, ctx.params.n)
+	ph := ctx.precomputeHashes(pubSeed, skSeed)
+	var otsAddr, lTreeAddr address
+	wotsPK := ctx.wotsPkGen(pad, ph, otsAddr)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ctx.lTree(pad, wotsPK, ph, lTreeAddr)
+	}
+}
+
+func BenchmarkLtree(b *testing.B) {
+	benchmarkLtree(NewContextFromOid(1), b)
+}

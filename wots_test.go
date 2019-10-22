@@ -144,8 +144,7 @@ func BenchmarkWotsVerify_SHA256(b *testing.B) {
 }
 
 func benchmarkWotsVerify(b *testing.B, oid uint32) {
-	sk, _, _ := GenKeyPair(32, 4, 0, 0, 4)
-	ctx := sk.ctx
+	ctx := NewContextFromOid(1)
 	var pubSeed []byte = make([]byte, ctx.params.n)
 	var skSeed []byte = make([]byte, ctx.params.n)
 	var msg []byte = make([]byte, ctx.params.n)
@@ -165,4 +164,38 @@ func benchmarkWotsVerify(b *testing.B, oid uint32) {
 		rand.Read(msg)
 		ctx.wotsPkFromSigInto(pad, sig, msg, ph, address(addr), pad.wotsBuf())
 	}
+}
+
+func benchmarkWotsGenSk(b *testing.B, oid uint32) {
+	ctx := NewContextFromOid(oid)
+	out := make([]byte, ctx.params.n*ctx.params.wotsLen())
+	var pubSeed []byte = make([]byte, ctx.params.n)
+	var skSeed []byte = make([]byte, ctx.params.n)
+	ph := ctx.precomputeHashes(pubSeed, skSeed)
+	pad := ctx.newScratchPad()
+	var otsAddr address
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		ctx.genWotsSk(pad, ph, otsAddr, out)
+	}
+}
+
+func BenchmarkWotsGenSk(b *testing.B) {
+	benchmarkWotsGenSk(b, 1)
+}
+
+func benchmarkWotsGenPk(ctx *Context, b *testing.B) {
+	var pubSeed []byte = make([]byte, ctx.params.n)
+	var skSeed []byte = make([]byte, ctx.params.n)
+	ph := ctx.precomputeHashes(pubSeed, skSeed)
+	pad := ctx.newScratchPad()
+	var otsAddr address
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		ctx.wotsPkGen(pad, ph, otsAddr)
+	}
+}
+
+func BenchmarkWotsGenPk(b *testing.B) {
+	benchmarkWotsGenPk(NewContextFromOid(1), b)
 }

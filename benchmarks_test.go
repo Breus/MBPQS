@@ -23,7 +23,7 @@ func BenchmarkKeyGen(b *testing.B) {
 	HCases := []uint32{8, 12, 16, 20}
 	if testing.Short() {
 		wCases = []uint16{4, 16}
-		HCases = []uint32{8, 12, 16, 20}
+		HCases = []uint32{8, 10, 12, 14, 16}
 	}
 
 	for _, w := range wCases {
@@ -51,6 +51,10 @@ func benchmarkAddChannel(h uint32, w uint16, b *testing.B) {
 func BenchmarkAddChannel(b *testing.B) {
 	wCases := []uint16{4, 16, 256}
 	hCases := []uint32{2, 10, 100, 1000, 10000, 100000}
+	if testing.Short() {
+		wCases = []uint16{4, 16}
+		hCases = []uint32{2, 10, 100, 1000}
+	}
 	for _, w := range wCases {
 		for _, h := range hCases {
 			name := "w" + fmt.Sprint(w) + "-h" + fmt.Sprint(h)
@@ -108,7 +112,7 @@ func BenchmarkSignMsg(b *testing.B) {
 	wCases := []uint16{4, 16, 256}
 	hCases := []uint32{2, 10, 100, 1000, 10000}
 	if testing.Short() {
-		cCases = []uint16{0, 1}
+		cCases = []uint16{1}
 		wCases = []uint16{4, 16}
 		hCases = []uint32{2, 10, 100, 1000, 10000}
 	}
@@ -140,7 +144,7 @@ func BenchmarkVerification(b *testing.B) {
 }
 
 func benchmarkVerification(w uint16, c uint16, b *testing.B) {
-	p := InitParam(32, 2, 4, c, w)
+	p := InitParam(32, 2, 2, c, w)
 
 	sk, pk, err := GenerateKeyPair(p, 0)
 	if err != nil {
