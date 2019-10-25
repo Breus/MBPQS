@@ -130,7 +130,7 @@ func BenchmarkSignMsg(b *testing.B) {
 }
 
 func BenchmarkVerification(b *testing.B) {
-	wCases := []uint16{4, 16, 256}
+	wCases := []uint16{4, 16}
 	cCases := []uint16{0}
 	for _, w := range wCases {
 		for _, c := range cCases {
@@ -150,11 +150,11 @@ func benchmarkVerification(w uint16, c uint16, b *testing.B) {
 	if err != nil {
 		b.Fatal("Generating key pair failed with error: ", err)
 	}
-	chIdx, _, err := sk.AddChannel()
+	chIdx, RtSig, err := sk.AddChannel()
 	if err != nil {
 		b.Fatal("Adding channel failed with error: ", err)
 	}
-	msg := make([]byte, 32*8)
+	msg := make([]byte, 32)
 	rand.Read(msg)
 	var sigChain []Signature
 	var msgChain [][]byte
@@ -165,14 +165,14 @@ func benchmarkVerification(w uint16, c uint16, b *testing.B) {
 	sigChain = append(sigChain, sig)
 	msgChain = append(msgChain, msg)
 
-	growSig, err := sk.GrowChannel(chIdx)
+	_, err = sk.GrowChannel(chIdx)
 	if err != nil {
 		b.Fatalf("Channel growing failed with error %s", err)
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		//accept, err := pk.VerifyChannelRoot(RtSig, RtSig.NextAuthNode())
-		accept, err := pk.verifyChainTreeRoot(growSig, sig.NextAuthNode())
+		accept, err := pk.VerifyChannelRoot(RtSig, RtSig.NextAuthNode())
+		//accept, err := pk.verifyChainTreeRoot(growSig, sig.NextAuthNode())
 		//accept, err := pk.VerifyMsg(sig, msg, RtSig.NextAuthNode())
 		if err != nil {
 			b.Fatal("Signature verification failed with error:", err)
@@ -182,4 +182,24 @@ func benchmarkVerification(w uint16, c uint16, b *testing.B) {
 		}
 	}
 
+}
+
+func benchmarkHashMessage(b *testing.B) {
+	sk, _, err := GenKeyPair(32, 3, 4, 1, 16)
+	if err != nil {
+		b.Fatal("Benchmark HashMessage failed with error:", err)
+	}
+	msg := make([]byte, 51200)
+	rand.Read(msg)
+	pad := sk.ctx.newScratchPad()
+	var sigIdx uint64 = 123021302101
+	for i := 0; i < b.N; i++ {
+		drv := sk.ctx.prfUint64(pad, sigIdx, sk.skPrf)
+		sk.ctx.hashMessage(pad, msg, drv, sk.root, sigIdx)
+	}
+
+}
+
+func BenchmarkHashMessage(b *testing.B) {
+	benchmarkHashMessage(b)
 }

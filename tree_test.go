@@ -2,6 +2,7 @@ package mbpqs
 
 import (
 	"encoding/hex"
+	"math/rand"
 	"testing"
 )
 
@@ -149,4 +150,25 @@ func benchmarkLtree(ctx *Context, b *testing.B) {
 
 func BenchmarkLtree(b *testing.B) {
 	benchmarkLtree(NewContextFromOid(1), b)
+}
+
+func BenchmarkInternalNode(b *testing.B) {
+	benchmarkInternalNode(NewContextFromOid(1), b)
+}
+
+func benchmarkInternalNode(ctx *Context, b *testing.B) {
+	pad := ctx.newScratchPad()
+	var pubSeed []byte = make([]byte, ctx.params.n)
+	var skSeed []byte = make([]byte, ctx.params.n)
+	ph := ctx.precomputeHashes(pubSeed, skSeed)
+	leftNode := make([]byte, 32)
+	rightNode := make([]byte, 32)
+	rand.Read(leftNode)
+	rand.Read(rightNode)
+	out := make([]byte, 32)
+	var treeAddr address
+
+	for i := 0; i < b.N; i++ {
+		ctx.hInto(pad, leftNode, rightNode, ph, treeAddr, out)
+	}
 }

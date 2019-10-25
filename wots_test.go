@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"math/rand"
+	"reflect"
 	"testing"
 )
 
@@ -159,9 +160,10 @@ func benchmarkWotsVerify(b *testing.B, oid uint32) {
 	pad := ctx.newScratchPad()
 	sig := ctx.wotsSign(pad, msg, pubSeed, skSeed, address(addr))
 	ph := ctx.precomputeHashes(pubSeed, nil)
+	rand.Read(msg)
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		rand.Read(msg)
+
 		ctx.wotsPkFromSigInto(pad, sig, msg, ph, address(addr), pad.wotsBuf())
 	}
 }
@@ -171,6 +173,8 @@ func benchmarkWotsGenSk(b *testing.B, oid uint32) {
 	out := make([]byte, ctx.params.n*ctx.params.wotsLen())
 	var pubSeed []byte = make([]byte, ctx.params.n)
 	var skSeed []byte = make([]byte, ctx.params.n)
+	rand.Read(pubSeed)
+	rand.Read(skSeed)
 	ph := ctx.precomputeHashes(pubSeed, skSeed)
 	pad := ctx.newScratchPad()
 	var otsAddr address
@@ -198,4 +202,44 @@ func benchmarkWotsGenPk(ctx *Context, b *testing.B) {
 
 func BenchmarkWotsGenPk(b *testing.B) {
 	benchmarkWotsGenPk(NewContextFromOid(1), b)
+}
+
+func benchmarkCompression(ctx *Context, b *testing.B) {
+	var addr address
+	pad := ctx.newScratchPad()
+	hashPrfSk := sha256.New()
+	hashPrfSk.Write(encodeUint64(hashPaddingPRF, int(ctx.params.n)))
+	hashValPrfSk := reflect.ValueOf(hashPrfSk).Elem()
+	out := make([]byte, 32)
+	pad.hashPad.hVal.Set(hashValPrfSk)
+	addrBuf := pad.prfAddrBuf()
+	addr.writeInto(addrBuf)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		pad.hashPad.h.Write(addrBuf)
+		pad.hashPad.h.Sum(out[:0])
+	}
+}
+
+func BenchmarkCompression(b *testing.B) {
+	benchmarkCompression(NewContextFromOid(1), b)
+}
+
+func benchmarkGenWotsSeed(ctx *Context, b *testing.B) {
+	var addr address
+	var pubSeed []byte = make([]byte, ctx.params.n)
+	var skSeed []byte = make([]byte, ctx.params.n)
+	pad := ctx.newScratchPad()
+	rand.Read(pubSeed)
+	rand.Read(skSeed)
+	ph := ctx.precomputeHashes(pubSeed, skSeed)
+	out := make([]byte, ctx.params.n)
+	for i := 0; i < b.N; i++ {
+		ph.prfAddrSkSeedInto(pad, addr, out)
+	}
+}
+
+func BenchmarkGenWotsSeed(b *testing.B) {
+	benchmarkGenWotsSeed(NewContextFromOid(1), b)
 }
