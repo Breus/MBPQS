@@ -83,7 +83,7 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer, from, til
 		// branch above, but in parallel.
 		wg := &sync.WaitGroup{}
 		mux := &sync.Mutex{}
-		var perBatch uint32 = 200
+		var perBatch uint32 = 1
 		threads := sk.ctx.threads
 		if threads == 0 {
 			threads = runtime.NumCPU()
