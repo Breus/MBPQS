@@ -89,7 +89,7 @@ func (ctx *Context) genRootTreeInto(pad scratchPad, ph precomputedHashes, rt roo
 		// branch above, but in parallel.
 		wg := &sync.WaitGroup{}
 		mux := &sync.Mutex{}
-		var perBatch uint32 = 32
+		var perBatch uint32 = 1
 		threads := ctx.threads
 		if threads == 0 {
 			threads = runtime.NumCPU()

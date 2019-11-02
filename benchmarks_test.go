@@ -20,10 +20,10 @@ func benchmarkKeyGen(rtH uint32, w uint16, b *testing.B) {
 // Benchmark KeyGen for different parameters of w and H.
 func BenchmarkKeyGen(b *testing.B) {
 	wCases := []uint16{4, 16, 256}
-	HCases := []uint32{8, 12, 16, 20}
+	HCases := []uint32{2, 4, 6, 8, 10, 12, 16, 20}
 	if testing.Short() {
 		wCases = []uint16{4, 16}
-		HCases = []uint32{8, 10, 12, 14, 16}
+		HCases = []uint32{2, 4, 6, 8, 10}
 	}
 
 	for _, w := range wCases {
