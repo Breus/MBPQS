@@ -46,6 +46,7 @@ func (sk *PrivateKey) genChainTree(pad scratchPad, chIdx, chLayer uint32) chainT
 }
 
 // Allocates a partial chaintree and returns it in memory.
+// Chain-tree size: till-from
 func (sk *PrivateKey) genChainTreeFromTill(pad scratchPad, chIdx, chLayer, from, till uint32) chainTree {
 	ct := newChainTree(till-from+1, sk.ctx.params.n)
 	sk.genChainTreeInto(pad, chIdx, chLayer, from, till, ct)
@@ -53,8 +54,9 @@ func (sk *PrivateKey) genChainTreeFromTill(pad scratchPad, chIdx, chLayer, from,
 }
 
 // Generates a chain tree into ct.
+// Chaintree size = (from-till+1)n
 // From is lowest = lowest height you want to have
-// Till is highest = highest height + 1 you want to have
+// Till is highest = highest height you want to have
 func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer, from, till uint32, ct chainTree) {
 	// Init addresses for OTS, LTree nodes, and Tree nodes.
 	var otsAddr, lTreeAddr, nodeAddr address
@@ -73,17 +75,17 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer, from, til
 	var idx uint32
 	if sk.ctx.threads == 1 {
 		// No. leafs == height of the chain tree.
-		for idx := from; idx < till; idx++ {
+		for idx := from; idx <= till; idx++ {
 			lTreeAddr.setLTree(idx)
 			otsAddr.setOTS(idx)
-			copy(sk.leafFrom(&ct, idx, from), sk.ctx.genLeaf(pad, sk.ph, lTreeAddr, otsAddr))
+			copy(sk.leafFromTill(&ct, idx, from, till), sk.ctx.genLeaf(pad, sk.ph, lTreeAddr, otsAddr))
 		}
 	} else {
 		// The code in this branch does exactly the same as in the
 		// branch above, but in parallel.
 		wg := &sync.WaitGroup{}
 		mux := &sync.Mutex{}
-		var perBatch uint32 = 200
+		var perBatch uint32 = 1
 		threads := sk.ctx.threads
 		if threads == 0 {
 			threads = runtime.NumCPU()
@@ -96,19 +98,21 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer, from, til
 				for {
 					mux.Lock()
 					ourIdx = idx
+					fmt.Println(ourIdx)
 					idx += perBatch
 					mux.Unlock()
-					if ourIdx >= till {
+					if ourIdx > till {
 						break
 					}
 					ourEnd := ourIdx + perBatch
 					if ourEnd > till {
-						ourEnd = till
+						ourEnd = till + 1
 					}
 					for ; ourIdx < ourEnd; ourIdx++ {
 						lTreeAddr.setLTree(ourIdx)
 						otsAddr.setOTS(ourIdx)
-						copy(sk.leafFrom(&ct, ourIdx, from), sk.ctx.genLeaf(
+						fmt.Println("ourId", ourIdx, "from", from)
+						copy(sk.leafFromTill(&ct, ourIdx, from, till), sk.ctx.genLeaf(
 							pad,
 							sk.ph,
 							lTreeAddr,
@@ -131,15 +135,16 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer, from, til
 		nodeAddr.setTreeIndex(0)
 		sk.ctx.hInto(pad, ct.nodeFrom(height-1, 0, from), ct.nodeFrom(height-1, 1, from), sk.ph, nodeAddr, ct.nodeFrom(height, 0, from))
 	}
-
 }
 
 // Returns a slice of the leaf at given leaf index
-func (sk *PrivateKey) leafFrom(ct *chainTree, idx, from uint32) []byte {
-	if idx-from == ct.height-1 {
+func (sk *PrivateKey) leafFromTill(ct *chainTree, idx, from, till uint32) []byte {
+	fmt.Println("idx", idx, "from", from, "height", ct.height, "till", till)
+	if idx == till {
+		fmt.Println("testertjes")
 		return ct.node(0, 0)
 	}
-	leafH := sk.ctx.params.chanH - 2 - idx - from
+	leafH := ct.height - idx - 1 - from
 	return ct.node(leafH, 1)
 }
 

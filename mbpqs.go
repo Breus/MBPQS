@@ -214,7 +214,11 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*MsgSignature, e
 	// Compute the chainTree.
 	c := uint32(sk.ctx.params.c)
 	if c == 0 { // There is no cache.
-		ct := sk.genChainTree(pad, chIdx, chLayer)
+		// get nodeHeight to generate chainTree till
+		nh := sk.ctx.getNodeHeight(chLayer, chainSeqNo)
+		//ct := sk.genChainTree(pad, chIdx, chLayer)
+		fmt.Println("Node height:", nh)
+		ct := sk.genChainTreeFromTill(pad, chIdx, chLayer, 0, nh)
 		// Select the authentication node in the tree.
 		authPathNode = ct.authPath(uint32(chainSeqNo))
 	} else if c == 1 { // There is a cache, and the required authnode is in the cache.
