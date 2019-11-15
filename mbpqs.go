@@ -99,8 +99,7 @@ func (sk *PrivateKey) SignChannelRoot(chRt []byte) (*RootSignature, error) {
 	}
 
 	// Set otsAddr to calculate wotsSign over the message.
-	var otsAddr address // All fields should be 0, that's why init is enough.
-	// TODO: check address for OTS
+	var otsAddr address           // All fields should be 0, that's why init is enough.
 	otsAddr.setOTS(uint32(seqNo)) // Except the OTS address which is seqNo = index.
 
 	// Compute the root tree to build the authentication path
@@ -216,20 +215,21 @@ func (sk *PrivateKey) SignChannelMsg(chIdx uint32, msg []byte) (*MsgSignature, e
 	if c == 0 { // There is no cache.
 		// get nodeHeight to generate chainTree till
 		nh := sk.ctx.getNodeHeight(chLayer, chainSeqNo)
-		//ct := sk.genChainTree(pad, chIdx, chLayer)
-		fmt.Println("Node height:", nh)
-		ct := sk.genChainTreeFromTill(pad, chIdx, chLayer, 0, nh)
+		ct := sk.genChainTreeTill(pad, chIdx, chLayer, nh)
 		// Select the authentication node in the tree.
-		authPathNode = ct.authPath(uint32(chainSeqNo))
+		authPathNode = sk.ctx.authPath(chainSeqNo, chLayer, ct)
 	} else if c == 1 { // There is a cache, and the required authnode is in the cache.
 		authPathNode = ch.cache[((chainSeqNo+1)/c-1)*sk.ctx.params.n : ((chainSeqNo+1)/c-1)*sk.ctx.params.n+sk.ctx.params.n]
-	} else { // There is a chache, and the required authnode can be computed from a node in the cache.
-		h := sk.ctx.params.chanH
-		nh := h - 2 - chainSeqNo
-		closesNode := (nh/c + ((h - 1) % c))
-		ct := sk.genChainTreeFromTill(pad, chIdx, chLayer, closesNode, nh+1)
-		authPathNode = ct.node(nh-closesNode, 0)
+	} else {
+		return nil, fmt.Errorf("Caching parameter c must be 1 or 0 and was %d", c)
 	}
+	// } else { // There is a chache, and the required authnode can be computed from a node in the cache.
+	// 	h := sk.ctx.params.chanH
+	// 	nh := h - 2 - chainSeqNo
+	// 	closesNode := (nh/c + ((h - 1) % c))
+	// 	ct := sk.genChainTreeTill(pad, chIdx, chLayer, nh+1)
+	// 	authPathNode = ct.node(nh-closesNode, 0)
+	// }
 
 	// Set OTSaddr to calculate the Wots sig over the message.
 
