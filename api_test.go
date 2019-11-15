@@ -132,8 +132,6 @@ func TestSignStoreVerify(t *testing.T) {
 	sk, pk, err := mbpqs.GenKeyPair(n, rootH, chanH, c, w)
 	if err != nil {
 		t.Fatalf("KeyGen failed: %s\n", err)
-	} else {
-		fmt.Println("Key generation finished")
 	}
 
 	// SIGN + STORE ON "BLOCKCHAIN"

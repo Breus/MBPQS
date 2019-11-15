@@ -1,7 +1,6 @@
 package mbpqs
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -68,7 +67,7 @@ func TestNonExistingChannelSigning(t *testing.T) {
 
 func TestChannelSigningEnoughSigsInChain(t *testing.T) {
 	// Create MBPQS keypair.
-	sk, pk, err := GenerateKeyPair(&Params{n: 32, w: 16, c: 0, rootH: 3, chanH: 1005}, 0)
+	sk, pk, err := GenerateKeyPair(&Params{n: 32, w: 16, c: 1, rootH: 3, chanH: 5}, 0)
 	if err != nil {
 		t.Fatalf("keygeneration gave error %s", err)
 	}
@@ -86,7 +85,7 @@ func TestChannelSigningEnoughSigsInChain(t *testing.T) {
 		t.Fatalf("signing in channel failed with error %s", err)
 	}
 
-	// Verify the channel message.166 19 66 193 120 119 122 166 249 123 31 150 236 253 73 144 181 62 150 133 206 239 210 13 170 170 179 76 119 60 44 253 143 140 203 78 101 57 97 228 76 109 221 239 70 158 43 155 165 100 222 0 195 51 128 111 164 144 56 169 146 107 172 233 133 123 102 162 121 117 71 46 146 203 114 190 253 248 169 98 228 233 133 15 220 244 73 65 188 131 100 2 117 34 126 169]
+	// Verify the channel message.
 	accept, err := pk.VerifyChannelMsg(chSig, msg, chRtSig.rootHash)
 	if err != nil {
 		t.Fatalf("verification of right message failed with errror %s", err)
@@ -243,15 +242,17 @@ func TestChannelCreation(t *testing.T) {
 }
 
 func TestSignGrowSign(t *testing.T) {
-	var chanH uint32 = 4
+	var chanH uint32 = 6
 	msg := []byte("Message to be signed.")
 	p := InitParam(32, 3, chanH, 0, 4)
 	sk, _, _ := GenerateKeyPair(p, 0)
 	chIdx, _, _ := sk.AddChannel()
-	for i := 0; i < int(1000); i++ {
-		if i%int(chanH-1) == 0 {
-			fmt.Println("Growing at index:", i)
-			sk.GrowChannel(chIdx)
+	for i := 0; i < int(20); i++ {
+		if i%int(chanH-1) == 0 && i != 0 {
+			_, err := sk.GrowChannel(chIdx)
+			if err != nil {
+				t.Fatalf("Channel growth failed with error %s", err)
+			}
 		}
 		_, err := sk.SignMsg(chIdx, msg)
 		if err != nil {

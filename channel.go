@@ -41,21 +41,24 @@ func (sk *PrivateKey) deriveChannel(chIdx uint32) *Channel {
 // Allocates a new ChainTree and returns a generated chaintree into the memory.
 func (sk *PrivateKey) genChainTree(pad scratchPad, chIdx, chLayer uint32) chainTree {
 	ct := newChainTree(sk.ctx.chainTreeHeight(chLayer), sk.ctx.params.n)
-	sk.genChainTreeInto(pad, chIdx, chLayer, 0, sk.ctx.params.chanH, ct)
+	hg := sk.ctx.chainTreeHeight(chLayer)
+	sk.genChainTreeInto(pad, chIdx, chLayer, hg-1, ct)
 	return ct
 }
 
 // Allocates a partial chaintree and returns it in memory.
-func (sk *PrivateKey) genChainTreeFromTill(pad scratchPad, chIdx, chLayer, from, till uint32) chainTree {
-	ct := newChainTree(till-from+1, sk.ctx.params.n)
-	sk.genChainTreeInto(pad, chIdx, chLayer, from, till, ct)
+// Chain-tree size: (2*till+1)n
+func (sk *PrivateKey) genChainTreeTill(pad scratchPad, chIdx, chLayer, till uint32) chainTree {
+	ct := newChainTree(till+1, sk.ctx.params.n)
+	sk.genChainTreeInto(pad, chIdx, chLayer, till, ct)
 	return ct
 }
 
 // Generates a chain tree into ct.
-// From is lowest = lowest height you want to have
-// Till is highest = highest height + 1 you want to have
-func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer, from, till uint32, ct chainTree) {
+// Chaintree size = (2*till+1)n
+// Chaintree height = till+1
+// Till is highest = highest height you want to have
+func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer, till uint32, ct chainTree) {
 	// Init addresses for OTS, LTree nodes, and Tree nodes.
 	var otsAddr, lTreeAddr, nodeAddr address
 	sta := SubTreeAddress{
@@ -73,10 +76,10 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer, from, til
 	var idx uint32
 	if sk.ctx.threads == 1 {
 		// No. leafs == height of the chain tree.
-		for idx := from; idx < till; idx++ {
+		for idx = 0; idx <= till; idx++ {
 			lTreeAddr.setLTree(idx)
 			otsAddr.setOTS(idx)
-			copy(sk.leafFrom(&ct, idx, from), sk.ctx.genLeaf(pad, sk.ph, lTreeAddr, otsAddr))
+			copy(sk.leafTill(&ct, idx, till), sk.ctx.genLeaf(pad, sk.ph, lTreeAddr, otsAddr))
 		}
 	} else {
 		// The code in this branch does exactly the same as in the
@@ -92,28 +95,24 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer, from, til
 		for i := 0; i < threads; i++ {
 			go func(lTreeAddr, otsAddr address) {
 				pad := sk.ctx.newScratchPad()
-				var ourIdx = from
+				var ourIdx uint32
 				for {
 					mux.Lock()
 					ourIdx = idx
 					idx += perBatch
 					mux.Unlock()
-					if ourIdx >= till {
+					if ourIdx > till {
 						break
 					}
-					ourEnd := ourIdx + perBatch
-					if ourEnd > till {
-						ourEnd = till
-					}
-					for ; ourIdx < ourEnd; ourIdx++ {
-						lTreeAddr.setLTree(ourIdx)
-						otsAddr.setOTS(ourIdx)
-						copy(sk.leafFrom(&ct, ourIdx, from), sk.ctx.genLeaf(
-							pad,
-							sk.ph,
-							lTreeAddr,
-							otsAddr))
-					}
+					cH := sk.ctx.chainTreeHeight(chLayer)
+					lTreeAddr.setLTree(cH - 1 - ourIdx)
+					otsAddr.setOTS(cH - 1 - ourIdx)
+					copy(sk.leafTill(&ct, ourIdx, till), sk.ctx.genLeaf(
+						pad,
+						sk.ph,
+						lTreeAddr,
+						otsAddr))
+
 				}
 				wg.Done()
 			}(lTreeAddr, otsAddr)
@@ -124,28 +123,22 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer, from, til
 	// Next, compute the internal nodes and the root node.
 	var height uint32
 	// Looping through all the layers of the chainTree.
-	for height = from + 1; height < till; height++ {
+	for height = 1; height <= till; height++ {
 		// Set tree height of the computed node.
 		nodeAddr.setTreeHeight(height - 1)
 		// Internal nodes and root node have Treeindex 0.
 		nodeAddr.setTreeIndex(0)
-		sk.ctx.hInto(pad, ct.nodeFrom(height-1, 0, from), ct.nodeFrom(height-1, 1, from), sk.ph, nodeAddr, ct.nodeFrom(height, 0, from))
+		sk.ctx.hInto(pad, ct.node(height-1, 0), ct.node(height-1, 1), sk.ph, nodeAddr, ct.node(height, 0))
 	}
-
 }
 
 // Returns a slice of the leaf at given leaf index
-func (sk *PrivateKey) leafFrom(ct *chainTree, idx, from uint32) []byte {
-	if idx-from == ct.height-1 {
+func (sk *PrivateKey) leafTill(ct *chainTree, idx, till uint32) []byte {
+	if idx == 0 {
 		return ct.node(0, 0)
 	}
-	leafH := sk.ctx.params.chanH - 2 - idx - from
+	leafH := idx - 1
 	return ct.node(leafH, 1)
-}
-
-func (ct *chainTree) nodeFrom(height, idx, from uint32) []byte {
-	ptr := ct.n * (2*(height-from) + idx)
-	return ct.buf[ptr : ptr+ct.n]
 }
 
 // Returns a slice of the node at given height and index idx in the chain tree.
@@ -209,14 +202,15 @@ func (sk *PrivateKey) getChannelLayer(chIdx uint32) uint32 {
 }
 
 // Retrieve the authpath, calculated from the amount of available keys.
-func (ct *chainTree) authPath(sig uint32) []byte {
-	// For last key in a chainTree, autpath is the right node,
+func (ctx *Context) authPath(sig, chLayer uint32, ct chainTree) []byte {
+	// For last key in a chainTree, authpath is the right node,
 	// thus index = 1 on bottom level (height=0).
-	if sig == ct.height-1 {
+	cH := ctx.chainTreeHeight(chLayer)
+	if sig == cH-1 {
 		return ct.node(0, 1)
 	}
 	// For the rest, authpath is alway the left node in the tree, thus index = 0.
-	return ct.node(ct.height-2-sig, 0)
+	return ct.node(cH-2-sig, 0)
 }
 
 // Get node height of a node on chainLayer with chainSeqNo chainSeqNo.
