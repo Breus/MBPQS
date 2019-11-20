@@ -40,8 +40,8 @@ func (sk *PrivateKey) deriveChannel(chIdx uint32) *Channel {
 
 // Allocates a new ChainTree and returns a generated chaintree into the memory.
 func (sk *PrivateKey) genChainTree(pad scratchPad, chIdx, chLayer uint32) chainTree {
-	ct := newChainTree(sk.ctx.chainTreeHeight(chLayer), sk.ctx.params.n)
 	hg := sk.ctx.chainTreeHeight(chLayer)
+	ct := newChainTree(hg, sk.ctx.params.n)
 	sk.genChainTreeInto(pad, chIdx, chLayer, hg-1, ct)
 	return ct
 }
@@ -74,11 +74,13 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer, till uint
 	nodeAddr.setType(treeAddrType)
 	// First, compute the leafs of the chain tree.
 	var idx uint32
+	cH := sk.ctx.chainTreeHeight(chLayer)
+	fmt.Println("Till:", till)
 	if sk.ctx.threads == 1 {
 		// No. leafs == height of the chain tree.
 		for idx = 0; idx <= till; idx++ {
-			lTreeAddr.setLTree(idx)
-			otsAddr.setOTS(idx)
+			lTreeAddr.setLTree(cH - 1 - idx)
+			otsAddr.setOTS(cH - 1 - idx)
 			copy(sk.leafTill(&ct, idx, till), sk.ctx.genLeaf(pad, sk.ph, lTreeAddr, otsAddr))
 		}
 	} else {
@@ -86,7 +88,6 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer, till uint
 		// branch above, but in parallel.
 		wg := &sync.WaitGroup{}
 		mux := &sync.Mutex{}
-		var perBatch uint32 = 1
 		threads := sk.ctx.threads
 		if threads == 0 {
 			threads = runtime.NumCPU()
@@ -99,12 +100,11 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer, till uint
 				for {
 					mux.Lock()
 					ourIdx = idx
-					idx += perBatch
+					idx++
 					mux.Unlock()
 					if ourIdx > till {
 						break
 					}
-					cH := sk.ctx.chainTreeHeight(chLayer)
 					lTreeAddr.setLTree(cH - 1 - ourIdx)
 					otsAddr.setOTS(cH - 1 - ourIdx)
 					copy(sk.leafTill(&ct, ourIdx, till), sk.ctx.genLeaf(
