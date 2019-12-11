@@ -241,14 +241,18 @@ func TestChannelCreation(t *testing.T) {
 	}
 }
 
+//Signing growing and signing :-)
 func TestSignGrowSign(t *testing.T) {
 	var chanH uint32 = 6
 	msg := []byte("Message to be signed.")
-	p := InitParam(32, 3, chanH, 0, 4)
+	var gf uint32 = 3
+	p := InitParam(32, 3, chanH, gf, 0, 4)
 	sk, _, _ := GenerateKeyPair(p, 0)
 	chIdx, _, _ := sk.AddChannel()
-	for i := 0; i < int(20); i++ {
-		if i%int(chanH-1) == 0 && i != 0 {
+	var l uint32 = 1
+	for i := 0; i < int(10); i++ {
+		if i%int(chanH+(l-1)*gf-1) == 0 && i != 0 {
+			i = 0
 			_, err := sk.GrowChannel(chIdx)
 			if err != nil {
 				t.Fatalf("Channel growth failed with error %s", err)
@@ -258,5 +262,6 @@ func TestSignGrowSign(t *testing.T) {
 		if err != nil {
 			t.Fatal("TestSignTest failed with error:", err)
 		}
+		l = sk.Channels[chIdx].layers
 	}
 }

@@ -125,11 +125,13 @@ func TestSignStoreVerify(t *testing.T) {
 
 	// Generate parameterized keypair.
 	var rootH uint32 = 2
-	var chanH uint32 = 4
+	var chanH uint32 = 5
 	var c uint16 = 1
 	var w uint16 = 4
 	var n uint32 = 32
-	sk, pk, err := mbpqs.GenKeyPair(n, rootH, chanH, c, w)
+	var gf uint32 = 0
+	//sk, pk, err := mbpqs.GenKeyPair(n, rootH, chanH, c, w)
+	sk, pk, err := mbpqs.GenerateKeyPair(mbpqs.InitParam(n, rootH, chanH, gf, c, w), 1)
 	if err != nil {
 		t.Fatalf("KeyGen failed: %s\n", err)
 	}
@@ -145,7 +147,7 @@ func TestSignStoreVerify(t *testing.T) {
 		// Add the rootSig to the blocks.
 		mc.channels[i].blocks = append(mc.channels[i].blocks, rtSig)
 
-		// Lets sign 10 messages in each channel and add it to its respective blocks.
+		// Lets sign chanH-1 messages in each channel and add it to its respective blocks.
 		for j := 0; j < int(chanH-1); j++ {
 			msg := []byte("Message in channel" + string(chIdx))
 			msgSig, err := sk.SignMsg(chIdx, msg)
@@ -212,8 +214,8 @@ func TestSignStoreVerify(t *testing.T) {
 func TestVerifyMsg(t *testing.T) {
 	sigs := 1000
 	for H := 1; H < 2; H++ {
-		p := mbpqs.InitParam(32, uint32(H), 1001, 1, 4)
-		sk, pk, err := mbpqs.GenerateKeyPair(p, 0)
+		p := mbpqs.InitParam(32, uint32(H), 1001, 0, 1, 4)
+		sk, pk, err := mbpqs.GenerateKeyPair(p, 1)
 		if err != nil {
 			t.Fatal("Generating key pair failed with error: ", err)
 		}

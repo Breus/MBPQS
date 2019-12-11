@@ -12,8 +12,6 @@ type Context struct {
 	wotsLen2     uint32  // WOTS+ chains for checksum
 	wotsLen      uint32  // total number of WOTS+ chains
 	wotsSigBytes uint32  // length of WOTS+ signature
-	indexBytes   uint32  // size of an index
-	sigBytes     uint32  // size of signature
 	// The amount of threads to use in the MBPQS scheme.
 	threads int
 }
@@ -36,15 +34,12 @@ func newContext(p *Params) (ctx *Context, err error) {
 	if p.c > uint16(p.chanH-1) {
 		return nil, fmt.Errorf("maximum value for c = h - 1")
 	}
-
 	ctx.params = p
-	ctx.indexBytes = 4
 	ctx.wotsLogW = p.wotsLogW()
 	ctx.wotsLen1 = p.wotsLen1()
 	ctx.wotsLen2 = p.wotsLen2()
 	ctx.wotsLen = p.wotsLen()
 	ctx.wotsSigBytes = p.wotsSignatureSize()
-	ctx.sigBytes = (ctx.indexBytes + p.n + ctx.wotsSigBytes + p.rootH*p.n)
 	return ctx, nil
 }
 

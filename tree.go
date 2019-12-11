@@ -165,20 +165,20 @@ func (ctx *Context) lTree(pad scratchPad, wotsPk []byte, ph precomputedHashes, a
 	l := ctx.wotsLen  //uint32
 	for l > 1 {
 		addr.setTreeHeight(height)
-		// Amount of parentnodes this node has: equal to amount of 'neightbour nodes'.
+		// Amount of parentnodes this node hash.
 		parentNodes := l >> 1
 		var i uint32
 		// Go through all the nodes on the current lTree level.
 		for i = 0; i < parentNodes; i++ {
 			// Set the lTree index of the computed node
 			addr.setTreeIndex(i)
-			// Hash each wotsPk ellement with its neighbour element (node if heigher than level 1).
+			// Hash each wotsPk ellement with its sibbling element (node if heigher than level 1).
 			ctx.hInto(pad, wotsPk[2*i*ctx.params.n:(2*i+1)*ctx.params.n],
 				wotsPk[(2*i+1)*ctx.params.n:(2*i+2)*ctx.params.n],
 				ph, addr,
 				wotsPk[i*ctx.params.n:(i+1)*ctx.params.n])
 		}
-		// Check if l is uneven: then we need to elevate 1 node to a higher layer, because it has no neighbour node.
+		// Check if l is uneven: then we need to elevate 1 node to a higher layer, because it has no sibbling node.
 		if l&1 == 1 {
 			copy(wotsPk[(l>>1)*ctx.params.n:((l>>1)+1)*ctx.params.n],
 				wotsPk[(l-1)*ctx.params.n:l*ctx.params.n])
@@ -216,7 +216,7 @@ func (rt *rootTree) AuthPath(leaf uint32) []byte {
 func (ctx *Context) newScratchPad() scratchPad {
 	n := ctx.params.n
 	pad := scratchPad{
-		buf:     make([]byte, 10*n+64+ctx.params.n*ctx.wotsLen),
+		buf:     make([]byte, 10*n+64+n*ctx.wotsLen),
 		n:       n,
 		hashPad: ctx.newHashScratchPad(),
 	}

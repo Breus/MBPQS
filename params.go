@@ -7,6 +7,7 @@ type Params struct {
 	rootH uint32 // the height of the three (# levels -1).
 	chanH uint32 // the inital chain tree height.
 	c     uint16 // cache skip
+	gf    uint32 // growth factor, optional parameter default = 0.
 }
 
 var paramSets = []*Params{

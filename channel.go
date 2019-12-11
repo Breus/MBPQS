@@ -75,7 +75,6 @@ func (sk *PrivateKey) genChainTreeInto(pad scratchPad, chIdx, chLayer, till uint
 	// First, compute the leafs of the chain tree.
 	var idx uint32
 	cH := sk.ctx.chainTreeHeight(chLayer)
-	fmt.Println("Till:", till)
 	if sk.ctx.threads == 1 {
 		// No. leafs == height of the chain tree.
 		for idx = 0; idx <= till; idx++ {
@@ -168,7 +167,7 @@ func chainTreeFromBuf(buf []byte, height, n uint32) chainTree {
 
 // Returns the height of a chain tree at layer chainLayer.
 func (ctx *Context) chainTreeHeight(chainLayer uint32) uint32 {
-	return ctx.params.chanH
+	return ctx.params.chanH + ctx.params.gf*(chainLayer-1)
 }
 
 // ChainSeqNo retrieves the current cahinSeqNo and increases it with one.

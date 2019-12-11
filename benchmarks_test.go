@@ -10,7 +10,7 @@ import (
 
 // Benchmark function for Initial Key Generation.
 func benchmarkKeyGen(rtH uint32, w uint16, b *testing.B) {
-	p := InitParam(32, rtH, 2, 1, w)
+	p := InitParam(32, rtH, 2, 0, 1, w)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		GenerateKeyPair(p, 0)
@@ -39,7 +39,7 @@ func BenchmarkKeyGen(b *testing.B) {
 
 // Benchmark function for AddChannel.
 func benchmarkAddChannel(h uint32, w uint16, b *testing.B) {
-	p := InitParam(32, 2, h, 1, w)
+	p := InitParam(32, 2, h, 0, 1, w)
 	sk, _, _ := GenerateKeyPair(p, 0)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -74,7 +74,7 @@ func randomUint32(min, max int32) int32 {
 
 func benchmarkSignMsg(h uint32, c, w uint16, b *testing.B) {
 
-	p := InitParam(32, 2, h, c, w)
+	p := InitParam(32, 2, h, 0, c, w)
 	sk, _, err := GenerateKeyPair(p, 0)
 	if err != nil {
 		b.Fatal("BenchmarkSignMsg failed in keygen with error:", err)
@@ -144,7 +144,7 @@ func BenchmarkVerification(b *testing.B) {
 }
 
 func benchmarkVerification(w uint16, c uint16, b *testing.B) {
-	p := InitParam(32, 2, 2, c, w)
+	p := InitParam(32, 2, 2, 0, c, w)
 
 	sk, pk, err := GenerateKeyPair(p, 0)
 	if err != nil {
